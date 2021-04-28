@@ -63,17 +63,16 @@ if (!stats.exists()) {
 log.info "-------------------------------------"
 log.info "IKMB QC Pipeline - version ${version}"
 log.info "-------------------------------------"
-log.info "Date		${workflow.start}"
-log.info "Work dir	${workflow.workDir}"
-log.info "Target folder:	${params.folder}"
-log.info ""
+log.info "Date			${workflow.start}"
+log.info "Work dir		${workflow.workDir}"
+log.info "Target folder:		${params.folder}"
+log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
 reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
 
-reads.map { file-> [ file.getParent().getName(), file ] }
-	.into { reads_by_project, reads_to_screen }
+reads.map { file-> [ file.getParent().getName(), file ] }.into { reads_by_project ; reads_screen }
 
 process fastqc {
 
@@ -99,23 +98,21 @@ if (params.fastq_screen_config) {
 	process screen_contaminations {
 		
 		input:
-		set val(project),path(fastq) from reads_to_screen
-_
+		set val(project),path(fastq) from reads_screen
+
 		output:
 		set val(project),path("*_screen.txt") into contaminations
 
 		script:
 
 		"""
-			fastq_screen --force --subset 200000 --conf $params.fastq_screen_config --aligner bowtie2 $fastq
+			fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
 		"""
 
 	}
 
 } else {
-
 	contaminations = Channel.empty()
-
 }
 
 fastqc_by_project = fastqc_reports.groupTuple()
@@ -133,7 +130,7 @@ process multiqc_run {
 
 	script:
 	multiqc = "multiqc_demux.html"	
-	""-"
+	"""
 		multiqc -n $multiqc .
 	"""
 
