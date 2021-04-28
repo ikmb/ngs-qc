@@ -5,7 +5,7 @@ QC tools for new sequencing runs (FastQC, FastQ Screen, MultiQC Report)
 
 ## Usage instructions
 
-This pipeline is currently defined to run on the IKMB DX Cluster. To start the pipeline, you need:
+This pipeline is currently configured to run on the IKMB DX Cluster. To start the pipeline, you need:
 
 * singularity
 * nextflow

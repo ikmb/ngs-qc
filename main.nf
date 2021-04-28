@@ -49,6 +49,7 @@ if (params.help){
 def summary = [:]
 
 demux_folder = file(params.folder)
+run_dir = demux_folder.getParent().getName()
 
 stats = file("${params.folder}/Stats/Stats.json")
 
@@ -106,7 +107,7 @@ if (params.fastq_screen_config) {
 		script:
 
 		"""
-			fastq_screen --force --subset 2000000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
+			fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
 		"""
 
 	}
@@ -116,7 +117,8 @@ if (params.fastq_screen_config) {
 }
 
 fastqc_by_project = fastqc_reports.groupTuple()
-screen_by_project = contaminations.groupTuple()
+screens_by_project = contaminations.groupTuple()
+reports_by_project = fastqc_by_project.join(screens_by_project)
 
 process multiqc_run {
 
@@ -131,7 +133,7 @@ process multiqc_run {
 	script:
 	multiqc = "multiqc_demux.html"	
 	"""
-		multiqc -n $multiqc .
+		multiqc -b "Run ${run_dir}" -n $multiqc .
 	"""
 
 }
@@ -141,8 +143,7 @@ process multiqc_files {
 	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy'
 
 	input:
-	set val(project),file('*') from fastqc_by_project
-	set val(project),file('*') from screen_by_project
+	set val(project),file('*'),file('*') from reports_by_project
 
 	output:
 	path("multiqc_report.html") 
@@ -152,6 +153,6 @@ process multiqc_files {
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		multiqc .
+		multiqc -b "QC for ${project}" .
 	"""		
 }
