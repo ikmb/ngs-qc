@@ -18,10 +18,19 @@ nextflow run ikmb/ngs-qc --folder /mnt/demux/illumina/<PROJECT>
 
 ```
 
-This will traverse all the project folders and produce both a global run statistic from the bcl2fastq stats file as well as 
-pre-library metrics on sequence quality and possible contaminations. 
+This will traverse all the project folders and produce both a global run statistic 
+from the bcl2fastq stats file as well as per-library metrics on sequence 
+quality and possible contaminations. 
 
-By default, the results are writting to the folder "results", create in the place where the pipeline is launched from. Alternatively, 
-you may specifiy `--outdir /some/outdir` to generate the results elsewhere. If you point `--outdir` to  the same folder as the demuxed run,
-the QC reports should be correctly sorted into the respective project directories. 
+By default, the results are writting to the folder "results", created in the 
+place where the pipeline is launched from. Alternatively, you may specify 
+`--outdir /some/outdir` to generate the results elsewhere. If you point 
+`--outdir` to  the same folder as the demuxed run, the QC reports should be 
+correctly sorted into the respective project directories. 
+
+```bash
+
+nextflow run ikmb/ngs-qc --folder /mnt/demux/illumina/<PROJECT> --outdir /mnt/demux/illumina/<PROJECT>
+
+```
 
