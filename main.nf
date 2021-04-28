@@ -28,7 +28,7 @@ IKMB QC pipeline | version ${params.version}
 Usage: nextflow run ikmb/ngs-qc --folder /path/to/demux/folder
 
 Required parameters:
---folder                      Path to a demuxed Illumina project folder
+--folder                      Path to Illumina demux run dir
 
 Optional parameters:
 
@@ -47,21 +47,76 @@ if (params.help){
 
 def summary = [:]
 
-// #############
-// INPUT OPTIONS
-// #############
-
-// Sample input file
-
 demux_folder = file(params.folder)
 
-stats_file = file(params.folder + "/../Stats/Stats.json")
+stats = file("${params.folder}/Stats/Stats.json")
 
-if (!stats_file.exists()) {
-	stats_json = Channel.empty()
+if (!stats.exists()) {
+	stats_file = Channel.empty()
 } else {
-	stats_json = Channel.from(stats_file)
-}	
+	stats_file = Channel.fromPath(stats)
+}
 
-reads = Channel.from("${params.demux_folder}/*.fastq.gz")
+// Get list of all project folders
 
+reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
+
+reads_by_project = reads.map { file-> [ file.getParent().getName(), file ] }
+
+process fastqc {
+
+	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy'
+
+	input:
+	set val(project),path(fastq) from reads_by_project
+
+	output:
+	set val(project), path("*.zip") into fastqc_reports
+	path("*.html")
+	
+	script:
+	
+	"""
+		fastqc -t 1 $fastq
+	"""
+
+}
+
+fastqc_by_project = fastqc_reports.groupTuple()
+
+process multiqc_run {
+
+	publishDir "${params.outdir}/MultiQC", mode: 'copy'
+
+	input:
+	file(json) from stats_file
+
+	output:
+	file(multiqc)
+
+	script:
+	multiqc = "multiqc_demux.html"	
+	"""
+		multiqc -n $multiqc .
+	"""
+
+}
+ 
+process multiqc_files {
+
+	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy'
+
+	input:
+	set val(project),file('*') from fastqc_by_project
+
+	output:
+	path("multiqc_report.html") 
+
+	script:
+
+	"""
+		cp ${baseDir}/assets/multiqc_config.yaml . 
+		cp ${baseDir}/assets/ikmblogo.png . 
+		multiqc .
+	"""		
+}
