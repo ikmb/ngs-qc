@@ -106,7 +106,7 @@ if (params.fastq_screen_config) {
 		script:
 
 		"""
-			fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
+			fastq_screen --force --subset 2000000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
 		"""
 
 	}
