@@ -49,7 +49,7 @@ if (params.help){
 def summary = [:]
 
 demux_folder = file(params.folder)
-run_dir = demux_folder.getParent().getName()
+run_dir = demux_folder.getName()
 
 stats = file("${params.folder}/Stats/Stats.json")
 
@@ -71,7 +71,7 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
+reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz").ifEmpty{ exit 1; "No fastQ files found in this run directory" }
 
 reads.map { file-> [ file.getParent().getName(), file ] }.into { reads_by_project ; reads_screen }
 
@@ -153,6 +153,12 @@ process multiqc_files {
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		multiqc -b "QC for ${project}" .
+		multiqc -b "QC for ${project} (${run_dir})" .
 	"""		
+}
+
+workflow.onComplete { 
+
+	log.info "QC Pipeline successful: ${workflow.success}"
+
 }
