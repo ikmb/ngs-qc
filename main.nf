@@ -71,16 +71,20 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz").ifEmpty{ exit 1; "No fastQ files found in this run directory" }
+reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
+tenx_reads = Channel.fromPath("${demux_folder}/*/H*/*-L?/*_R{1,2}_001.fastq.gz", followLinks: false) 
 
-reads.map { file-> [ file.getParent().getName(), file ] }.into { reads_by_project ; reads_screen }
+tenx_reads.map { file -> [ file.getParent().getParent().getParent().getName(), file ] }.set { tenx_by_project } 
+reads.map { file-> [ file.getParent().getName(), file ] }.ifEmpty { log.info "No 10X projects found, assuming none were included..." }.set { reads_by_project }
+
+reads_by_project.mix(tenx_by_project).ifEmpty{ exit  1; "Found neither regular sequencing data nor 10X reads - exiting"}.into { all_reads_by_project; all_reads_screen  }
 
 process fastqc {
 
 	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy'
 
 	input:
-	set val(project),path(fastq) from reads_by_project
+	set val(project),path(fastq) from all_reads_by_project
 
 	output:
 	set val(project), path("*.zip") into fastqc_reports
@@ -99,7 +103,7 @@ if (params.fastq_screen_config) {
 	process screen_contaminations {
 		
 		input:
-		set val(project),path(fastq) from reads_screen
+		set val(project),path(fastq) from all_reads_screen
 
 		output:
 		set val(project),path("*_screen.txt") into contaminations
