@@ -1,25 +1,18 @@
-title: "Exome pipeline report"
-subtitle: "Best-practice workflow for clinical SNP calling"
+title: "NGS QC Report"
+subtitle: "QC Report for Illumina sequencing"
 custom_logo: "ikmblogo.png"
-custom_logo_title: "Insitute of Clinical Molecular Biology, Kiel"
-custom_logo_url: "http://www.ikmb.uni-kiel.de"
+custom_logo_title: "Competence Centre for Genomic Analysis (CCGA), Kiel"
+custom_logo_url: "http://www.ccga.uni-kiel.de"
 
 extra_fn_clean_exts:
-    - _R1
-    - _R2
-    - _duplicate_metrics.txt
+    - _001
 
 report_comment: >
-    This report has been generated automatically by the IKMB Diagnostic Exome pipeline.
-    For help interpreting the outputs, please see: https://github.com/ikmb/exome-seq
+    This report has been generated automatically by the CCGA QC pipeline.
 
 report_header_info:
-    - Contact E-mail: "b.loescher@ikmb.uni-kiel.de"
-    - Application Type: "Whole exome sequencing"
+    - Contact E-mail: "m.hoeppner@ikmb.uni-kiel.de"
+    - Application Type: "QC"
 
 top_modules:
     - 'general_stats'
-    - 'picard'
-    - 'picard_hsmetrics'
-    - 'bcftools'
-    - 'sex_check'

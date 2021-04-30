@@ -157,7 +157,7 @@ process multiqc_files {
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		multiqc -b "QC for ${project} (${run_dir})" .
+		multiqc -c multiqc_config.yaml -b "QC for ${project} (${run_dir})" .
 	"""		
 }
 
