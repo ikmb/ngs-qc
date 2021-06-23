@@ -81,7 +81,11 @@ reads_by_project.mix(tenx_by_project).ifEmpty{ exit  1; "Found neither regular s
 
 process fastqc {
 
-	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy'
+	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy' , overwrite: true
+
+	scratch true
+
+	stageOutMode 'rsync'
 
 	input:
 	set val(project),path(fastq) from all_reads_by_project
@@ -101,7 +105,7 @@ process fastqc {
 if (params.fastq_screen_config) {
 
 	process screen_contaminations {
-		
+
 		input:
 		set val(project),path(fastq) from all_reads_screen
 
@@ -126,7 +130,9 @@ reports_by_project = fastqc_by_project.join(screens_by_project)
 
 process multiqc_run {
 
-	publishDir "${params.outdir}/MultiQC", mode: 'copy'
+	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
+
+	stageOutMode 'rsync'
 
 	input:
 	file(json) from stats_file
@@ -144,7 +150,9 @@ process multiqc_run {
  
 process multiqc_files {
 
-	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy'
+	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy', overwrite: true
+
+	stageOutMode 'rsync'
 
 	input:
 	set val(project),file('*'),file('*') from reports_by_project
