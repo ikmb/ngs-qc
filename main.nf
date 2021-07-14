@@ -72,7 +72,7 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 // Get list of all project folders
 
 reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
-tenx_reads = Channel.fromPath("${demux_folder}/*/H*/*-L?/*_R{1,2}_001.fastq.gz", followLinks: false) 
+tenx_reads = Channel.fromPath("${demux_folder}/*/H*/*-L?/*_001.fastq.gz", followLinks: false) 
 
 tenx_reads.map { file -> [ file.getParent().getParent().getParent().getName(), file ] }
 	.ifEmpty { log.info "No 10X reads were found, assuming none were included..."}
