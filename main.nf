@@ -29,7 +29,7 @@ Usage: nextflow run ikmb/ngs-qc --folder /path/to/demux/folder
 
 Required parameters:
 --folder                      Path to Illumina demux run dir
-
+--skip_multiqc		      Do not generate an aggregated report for individual projects
 Optional parameters:
 
 Output:
@@ -162,6 +162,9 @@ process multiqc_files {
 	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy', overwrite: true
 
 	stageOutMode 'rsync'
+
+	when:
+	!params.skip_multiqc
 
 	input:
 	set val(project),file('*'),file('*') from reports_by_project
