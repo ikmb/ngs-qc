@@ -9,3 +9,4 @@ dependencies:
   - fastqc=0.11.9
   - multiqc=1.10
   - fastq-screen=0.14.0
+  - ruby=2.7.2

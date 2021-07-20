@@ -137,6 +137,7 @@ fastqc_by_project = fastqc_reports.groupTuple()
 screens_by_project = contaminations.groupTuple()
 reports_by_project = fastqc_by_project.join(screens_by_project)
 
+
 process multiqc_run {
 
 	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
@@ -170,14 +171,13 @@ process multiqc_files {
 	set val(project),file('*'),file('*') from reports_by_project
 
 	output:
-	path("multiqc_report.html") 
+	path("multiqc_report*.html") 
 
 	script:
-
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		multiqc -c multiqc_config.yaml -b "QC for ${project} (${run_dir})" .
+		partition_multiqc.rb -n ${project} -c ${params.chunk_size} -title "QC for ${project} (${run_dir})" --config multiqc_config.yaml
 	"""		
 }
 
