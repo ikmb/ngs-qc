@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 # == USAGE
 # ./partition_multiqc.rb [ -h | --help ]
 #[ -i | --infile ] |[ -o | --outfile ] |
@@ -19,6 +21,12 @@ require 'optparse'
 require 'ostruct'
 
 ### Define modules and classes here
+
+def run(command)
+
+	warn "#{Time.now}\tExecuting: #{command}"
+	system(command)
+end
 
 ### Get the script arguments and open relevant files
 options = OpenStruct.new()
@@ -44,14 +52,19 @@ options.chunk ? chunk = options.chunk.to_i : chunk = 100
 
 grouped.each_slice(chunk) do |slice|
 
-	all_reports = []
 	groups = []
+
+        list = File.new("list.txt","w+")
 	slice.each do |g,reports|
 		groups << g
-		reports.each {|r| all_reports << r }		
+		reports.each {|r| list.puts r }		
 	end
+	list.close
+
 	first_lib = groups.sort[0]
 	last_lib = groups.sort[-1]
-	command = "multiqc -n multiqc_report_#{first_lib}-#{last_lib}_#{options.name}.html -b #{options.title} -c #{options.config} #{all_reports.join(' ')}"
-	system(command)
+
+	command = "multiqc -n multiqc_report_#{options.name}_#{first_lib}-#{last_lib}.html -b \"#{options.title}\" -c #{options.config} --file-list list.txt"
+	run(command)
+
 end
