@@ -137,7 +137,6 @@ fastqc_by_project = fastqc_reports.groupTuple()
 screens_by_project = contaminations.groupTuple()
 reports_by_project = fastqc_by_project.join(screens_by_project)
 
-
 process multiqc_run {
 
 	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
@@ -160,6 +159,8 @@ process multiqc_run {
  
 process multiqc_files {
 
+	tag "${project}"
+
 	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy', overwrite: true
 
 	stageOutMode 'rsync'
@@ -171,7 +172,7 @@ process multiqc_files {
 	set val(project),file('*'),file('*') from reports_by_project
 
 	output:
-	path("multiqc_report*.html") 
+	path("multiqc_*.html") 
 
 	script:
 	"""
