@@ -178,7 +178,7 @@ process multiqc_files {
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		partition_multiqc.rb -n ${project} -c ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
+		partition_multiqc.pl --title ${project} --chunk ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
 	"""		
 }
 
