@@ -45,7 +45,7 @@ if ($help) {
 }
 
 
-my @files = glob("*_001.fast*") ;
+my @files = glob("*_001*") ;
 my %bucket;
 
 die "Must provide a name (--name) and title (--title)!\n" unless (defined $name && defined $title);

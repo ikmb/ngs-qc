@@ -89,6 +89,8 @@ reads_by_project.mix(tenx_by_project)
 	.into { all_reads_by_project; all_reads_screen  }
 
 process fastqc {
+	
+	label 'fastqc'
 
 	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy' , overwrite: true
 
@@ -141,6 +143,8 @@ process multiqc_run {
 
 	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
 
+	label 'multiqc'
+
 	stageOutMode 'rsync'
 
 	input:
@@ -158,6 +162,8 @@ process multiqc_run {
 }
  
 process multiqc_files {
+
+	label 'multiqc' 
 
 	tag "${project}"
 
@@ -178,7 +184,7 @@ process multiqc_files {
 	"""
 		cp ${baseDir}/assets/multiqc_config.yaml . 
 		cp ${baseDir}/assets/ikmblogo.png . 
-		partition_multiqc.pl --title ${project} --chunk ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
+		partition_multiqc.pl --name ${project} --chunk ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
 	"""		
 }
 
