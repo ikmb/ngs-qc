@@ -72,9 +72,9 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 // Get list of all project folders
 
 reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
-tenx_reads = Channel.fromPath("${demux_folder}/*/H*/*-L?/*_001.fastq.gz", followLinks: false) 
+tenx_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
 
-tenx_reads.map { file -> [ file.getParent().getParent().getParent().getName(), file ] }
+tenx_reads.map { file -> [ file.getParent().getParent().getName(), file ] }
 	.ifEmpty { log.info "No 10X reads were found, assuming none were included..."}
 	.filter ( f -> f != null )
 	.into { tenx_by_project; tenx_test } 
@@ -91,6 +91,8 @@ reads_by_project.mix(tenx_by_project)
 process fastqc {
 	
 	label 'fastqc'
+
+	tag "${project}|${fastq}"
 
 	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy' , overwrite: true
 
@@ -116,6 +118,8 @@ process fastqc {
 if (params.fastq_screen_config) {
 
 	process screen_contaminations {
+
+		tag "${project}|${fastq}"
 
 		input:
 		set val(project),path(fastq) from all_reads_screen

@@ -7,4 +7,4 @@ COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 ENV PATH /opt/conda/envs/ngs-qc-1.0/bin:$PATH
 
-RUN apt-get update && apt-get -y install procps make gcc ruby-all
+RUN apt-get update && apt-get -y install procps
