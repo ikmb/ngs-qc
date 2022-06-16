@@ -1,4 +1,8 @@
 #!/usr/bin/env nextflow
+nextflow.enable.dsl=2
+
+@Grab('com.github.groovy-wslite:groovy-wslite:1.1.2')
+import wslite.rest.*
 
 /**
 ===============================
@@ -49,7 +53,7 @@ if (params.help){
 def summary = [:]
 
 demux_folder = file(params.folder)
-run_dir = demux_folder.getName()
+params.run_dir = demux_folder.getName()
 
 stats = file("${params.folder}/Stats/Stats.json")
 
@@ -79,121 +83,111 @@ tenx_reads.map { file -> [ file.getParent().getParent().getName(), file ] }
 	.filter ( f -> f != null )
 	.into { tenx_by_project; tenx_test } 
 
-reads.map { file-> [ file.getParent().getName(), file ] }
+reads.map { file-> 
+		def project = file.getParent().getName()
+		tuple(project file) 
+	}
 	.ifEmpty { log.info "No regular projects found, assuming none were included..." }
 	.filter ( f -> f != null )
 	.into { reads_by_project; reads_test }
 
 reads_by_project.mix(tenx_by_project)
 	.ifEmpty{ exit  1; "Found neither regular sequencing data nor 10X reads - exiting"}
-	.into { all_reads_by_project; all_reads_screen  }
+	.into { all_reads_by_project; all_reads_screen ; all_reads_test }
 
-process fastqc {
-	
-	label 'fastqc'
+// Enrich channel with LIMS meta data to select data for specific QC measures
+all_reads_test.groupTuple().map { p,files ->
+	def meta = get_lims_info(p)
+	tuple(p,meta,files)
+}.branch { p,m,f ->
+	ampliseq: m.protocol == "Amplicon_Seq"
+	unknown: m.protocol == "Unknown"
+}.set { reads_by_application }
 
-	tag "${project}|${fastq}"
+// MODULES and WORKFLOWS
+include { FASTQC } from "./modules/fastqc"
+include { FASTQ_SCREEN } from "./modules/fastq_screen"
+include { AMPLICON_QC } from "./workflows/amplicon_qc"
+include { MULTIQC_RUN; MULTIQC_PROJECT } from './modules/multiqc'
 
-	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy' , overwrite: true
+ch_qc = Channel.from([])
 
-	scratch true
+workflow {
 
-	stageOutMode 'rsync'
+	FASTQC(all_reads_by_project)
+	ch_qc = ch_qc.mix(FASTQC.out.zip)
+	fastqc_by_project = FASTQC.out.zip.groupTuple()
 
-	input:
-	set val(project),path(fastq) from all_reads_by_project
-
-	output:
-	set val(project), path("*.zip") into fastqc_reports
-	path("*.html")
-	
-	script:
-	
-	"""
-		fastqc -t 1 $fastq	
-	"""
-
-}
-
-if (params.fastq_screen_config) {
-
-	process screen_contaminations {
-
-		tag "${project}|${fastq}"
-
-		input:
-		set val(project),path(fastq) from all_reads_screen
-
-		output:
-		set val(project),path("*_screen.txt") into contaminations
-
-		script:
-
-		"""
-			fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
-		"""
-
+	if (params.fastq_screen_config) {
+		FASTQ_SCREEN(all_reads_screen)
+		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.txt)
+		screens_by_project = FASTQ_SCREEN.out.txt.groupTuple()
 	}
 
-} else {
-	contaminations = Channel.empty()
-}
+	reports_by_project = fastqc_by_project.join(screens_by_project)
 
-fastqc_by_project = fastqc_reports.groupTuple()
-screens_by_project = contaminations.groupTuple()
-reports_by_project = fastqc_by_project.join(screens_by_project)
-
-process multiqc_run {
-
-	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
-
-	label 'multiqc'
-
-	stageOutMode 'rsync'
-
-	input:
-	file(json) from stats_file
-
-	output:
-	file(multiqc)
-
-	script:
-	multiqc = "multiqc_demux.html"	
-	"""
-		multiqc -b "Run ${run_dir}" -n $multiqc .
-	"""
+	// Amplicon QC subworkflow	
+	AMPLICON_QC(reads_by_application.ampliseq)
+		
+	// MultiQC reports
+	MULTIQC_RUN(stats_file)
+	MULTIQC_PROJECT(reports_by_project)
 
 }
- 
-process multiqc_files {
-
-	label 'multiqc' 
-
-	tag "${project}"
-
-	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy', overwrite: true
-
-	stageOutMode 'rsync'
-
-	when:
-	!params.skip_multiqc
-
-	input:
-	set val(project),file('*'),file('*') from reports_by_project
-
-	output:
-	path("multiqc_*.html") 
-
-	script:
-	"""
-		cp ${baseDir}/assets/multiqc_config.yaml . 
-		cp ${baseDir}/assets/ikmblogo.png . 
-		partition_multiqc.pl --name ${project} --chunk ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
-	"""		
-}
-
+	
 workflow.onComplete { 
 
 	log.info "QC Pipeline successful: ${workflow.success}"
 
 }
+
+// Functions to retrieve LIMS information about projects
+def get_lims_info(String name) {
+
+	def project_name = name.trim()
+	def url_path = "/project/info/${project_name}"
+	RESTClient client = new RESTClient("http://172.21.99.59/restapi")
+	def response = client.get( path: url_path,
+		accept: ContentType.JSON,
+		connectTimeout: 5000,
+                readTimeout: 10000,
+                followRedirects: false,
+                useCaches: false,
+                sslTrustAllCerts: true 
+	)
+	def external_id = response.json.external_id
+	def meta = get_project_details(external_id)
+
+	return meta
+}
+
+def get_project_details(Integer id) {
+
+	def meta = [:]
+	meta["protocol"] = "Unknown"
+	def url_path = "/get_order_info/order_id/${id}"
+	RESTClient client = new RESTClient("http://172.21.96.85/IKMB_order_service/api")
+        def response = client.post( path: url_path,
+                accept: ContentType.JSON,
+                headers:[Authorization: 'Token 6f332d6c7b99a76f183e6a295fb10aef9b9ce38a'],
+                connectTimeout: 5000,
+                readTimeout: 10000,
+                followRedirects: false,
+                useCaches: false,
+                sslTrustAllCerts: true
+        )
+
+	def data = response.json.info_dict.data
+	data.each { e ->
+		def key = e.type
+		def value = e.value
+		if (key == "Please prepare") {
+			key = "protocol"
+		}
+		meta[key] = value
+	}
+	
+	return meta
+}
+
+
