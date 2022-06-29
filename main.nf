@@ -75,30 +75,27 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
+reads = Channel.fromPath("${demux_folder}/*_*_*/*_R*_001.fastq.gz")
 tenx_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
 
-tenx_reads.map { file -> [ file.getParent().getParent().getName(), file ] }
+tenx_reads.map { f -> [ file(f).getParent().getParent().getName(), f ] }
 	.ifEmpty { log.info "No 10X reads were found, assuming none were included..."}
 	.filter ( f -> f != null )
-	.into { tenx_by_project; tenx_test } 
+	.set { tenx_by_project } 
 
-reads.map { file-> 
-		def project = file.getParent().getName()
-		tuple(project file) 
-	}
+reads.map { f-> [ file(f).getParent().getName(),f ] }
 	.ifEmpty { log.info "No regular projects found, assuming none were included..." }
 	.filter ( f -> f != null )
-	.into { reads_by_project; reads_test }
+	.set { reads_by_project }
 
 reads_by_project.mix(tenx_by_project)
 	.ifEmpty{ exit  1; "Found neither regular sequencing data nor 10X reads - exiting"}
-	.into { all_reads_by_project; all_reads_screen ; all_reads_test }
+	.set { all_reads_by_project }
 
-// Enrich channel with LIMS meta data to select data for specific QC measures
-all_reads_test.groupTuple().map { p,files ->
+// Enrich channel with LIMS meta data to select projects for specific QC measures
+reads_by_project.groupTuple().flatMap { p,files ->
 	def meta = get_lims_info(p)
-	tuple(p,meta,files)
+	files.collect { [ p,meta,file(it)] }
 }.branch { p,m,f ->
 	ampliseq: m.protocol == "Amplicon_Seq"
 	unknown: m.protocol == "Unknown"
@@ -119,16 +116,25 @@ workflow {
 	fastqc_by_project = FASTQC.out.zip.groupTuple()
 
 	if (params.fastq_screen_config) {
-		FASTQ_SCREEN(all_reads_screen)
-		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.txt)
-		screens_by_project = FASTQ_SCREEN.out.txt.groupTuple()
+		FASTQ_SCREEN(all_reads_by_project)
+		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.qc)
+		screens_by_project = FASTQ_SCREEN.out.qc.groupTuple()
 	}
 
 	reports_by_project = fastqc_by_project.join(screens_by_project)
 
 	// Amplicon QC subworkflow	
-	AMPLICON_QC(reads_by_application.ampliseq)
-		
+	AMPLICON_QC(
+		reads_by_application.ampliseq.map { p,m,f ->
+			def lib = f.getName().split(/_R[1,2]/)[0]
+			tuple(p,m,lib,f)
+		}
+		.groupTuple(by: [0,1,2])
+		.map { p,m,lib,files -> 
+			tuple(p,m,files) 
+		}
+	)
+
 	// MultiQC reports
 	MULTIQC_RUN(stats_file)
 	MULTIQC_PROJECT(reports_by_project)
@@ -169,7 +175,7 @@ def get_project_details(Integer id) {
 	RESTClient client = new RESTClient("http://172.21.96.85/IKMB_order_service/api")
         def response = client.post( path: url_path,
                 accept: ContentType.JSON,
-                headers:[Authorization: 'Token 6f332d6c7b99a76f183e6a295fb10aef9b9ce38a'],
+                headers:[Authorization:  System.getenv('LIMS_TOKEN')],
                 connectTimeout: 5000,
                 readTimeout: 10000,
                 followRedirects: false,
@@ -183,11 +189,46 @@ def get_project_details(Integer id) {
 		def value = e.value
 		if (key == "Please prepare") {
 			key = "protocol"
+		} else if (key == "We detect the variable region") {
+			key = "primers"
 		}
 		meta[key] = value
+		if (key == "primers") {
+
+			if ( value.contains("V1-V2") ) {
+				meta["FWD"] = params.amplicons["V1V2"].fwd
+				meta["REV"] = params.amplicons["V1V2"].rev
+				meta["trunclenf"] = params.amplicons["V1V2"].trunclenf.toInteger()
+				meta["trunclenr"] = params.amplicons["V1V2"].trunclenr.toInteger()
+			} else if ( value.contains("V3-V4") ) {
+				meta["FWD"] = params.amplicons["V3V4"].fwd
+                                meta["REV"] = params.amplicons["V3V4"].rev
+				meta["FWD_RC"] = rc(params.amplicons["V3V4"].fwd)
+                                meta["REV_RC"] = rc(params.amplicons["V3V4"].rev)
+				meta["trunclenf"] = params.amplicons["V3V4"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["V3V4"].trunclenr.toInteger()
+			} else if ( value.contains("archaea") ) {
+				meta["FWD"] = params.amplicons["Archaea"].fwd
+                                meta["REV"] = params.amplicons["Archaea"].rev
+                                meta["FWD_RC"] = rc(params.amplicons["Archaea"].fwd)
+                                meta["REV_RC"] = rc(params.amplicons["Archaea"].rev)
+				meta["trunclenf"] = params.amplicons["Archaea"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["Archaea"].trunclenr.toInteger()
+                        } else if ( value.contains("fungi") ) {
+				meta["FWD"] = params.amplicons["Fungi"].fwd
+                                meta["REV"] = params.amplicons["Fungi"].rev
+				meta["trunclenf"] = params.amplicons["Fungi"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["Fungi"].trunclenr.toInteger()
+			}
+						
+		}
 	}
 	
 	return meta
 }
 
-
+def rc(String seq) {
+	def complements = [ A:'T', T:'A', U:'A', G:'C', C:'G', Y:'R', R:'Y', S:'S', W:'W', K:'M', M:'K', B:'V', D:'H', H:'D', V:'B', N:'N' ]
+        comp = seq.reverse().toUpperCase().collect { base -> complements[ base ] ?: 'X' }.join()
+        return comp
+}

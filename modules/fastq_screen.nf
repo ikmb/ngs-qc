@@ -3,10 +3,10 @@ process FASTQ_SCREEN {
 	tag "${project}|${fastq}"
 
 	input:
-	set val(project),path(fastq)
+	tuple val(project),path(fastq)
 
 	output:
-	set val(project),path("*_screen.txt"), emit: text
+	tuple val(project),path("*_screen.txt"), emit: qc
 
 	script:
 
