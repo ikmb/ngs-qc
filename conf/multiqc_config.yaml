@@ -5,7 +5,7 @@ custom_logo_title: "Competence Centre for Genomic Analysis (CCGA), Kiel"
 custom_logo_url: "http://www.ccga.uni-kiel.de"
 
 extra_fn_clean_exts:
-    - _001
+    - "_001_"
 
 report_comment: >
     This report has been generated automatically by the CCGA QC pipeline.

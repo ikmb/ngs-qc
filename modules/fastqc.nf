@@ -27,7 +27,7 @@ process FASTQC {
 
 process FASTQC_DADA {
 
-	publishDir "${params.outdir}/${project}/dada2/fastqc", mode: 'copy'
+	//publishDir "${params.outdir}/${project}/dada2/fastqc", mode: 'copy'
 
         label 'fastqc'
 

@@ -2,7 +2,7 @@ process CUTADAPT {
  
    tag "${project}|${reads[0]}"
 
-    publishDir "${params.outdir}/${project}/cutadapt", mode: 'copy'
+    //publishDir "${params.outdir}/${project}/cutadapt", mode: 'copy'
 
     container 'quay.io/biocontainers/cutadapt:3.4--py39h38f01e4_1'
 
@@ -14,7 +14,7 @@ process CUTADAPT {
     tuple val(meta), path('*.log')          , emit: log
 
     script:
-    def prefix = reads[0].getSimpleName().split("_R")[0]
+    def prefix = reads[0].getSimpleName().split("_R[1,2]")[0]
     def trimmed  = "-o ${prefix}_1.trim.fastq.gz -p ${prefix}_2.trim.fastq.gz"
     def args = ""
       

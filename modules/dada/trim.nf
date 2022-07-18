@@ -1,5 +1,5 @@
 process DADA2_FILTNTRIM {
-    tag "${project}|${prefix}"
+    tag "${project}|${reads[0]}"
 
     container 'quay.io/biocontainers/bioconductor-dada2:1.22.0--r41h399db7b_0'
 

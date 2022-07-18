@@ -32,12 +32,16 @@ workflow AMPLICON_QC {
 	}
 	.set { ch_filt_reads }
 
+	DADA_ERROR(
+		ch_filt_reads
+	)
+		
 	FASTQC_DADA(
 		DADA_TRIM.out.reads
 	)
 
 	MULTIQC_DADA(
-		FASTQC_DADA.out.zip.flatten().groupTuple(by: [0]).map { project,zips ->
+		FASTQC_DADA.out.zip.groupTuple(by: [0]).map { project,zips ->
 			tuple(project, zips.flatten().sort())
 		}
 	)
