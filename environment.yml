@@ -6,9 +6,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - bioconda::fastqc=0.11.9
-  - bioconda::multiqc=1.13a
-  - bioconda::cutadapt
+  - bioconda::cutadapt=4.1
   - bioconda::bioconductor-dada2=1.22.0
   - bioconda::bioconductor-shortread=1.52.0
   
