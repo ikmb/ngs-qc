@@ -196,11 +196,13 @@ def get_project_details(Integer id) {
 		if (key == "primers") {
 
 			if ( value.contains("V1-V2") ) {
+				meta["Protocol"] = "V1V2"
 				meta["FWD"] = params.amplicons["V1V2"].fwd
 				meta["REV"] = params.amplicons["V1V2"].rev
 				meta["trunclenf"] = params.amplicons["V1V2"].trunclenf.toInteger()
 				meta["trunclenr"] = params.amplicons["V1V2"].trunclenr.toInteger()
 			} else if ( value.contains("V3-V4") ) {
+				meta["Protocol"] = "V3V4"
 				meta["FWD"] = params.amplicons["V3V4"].fwd
                                 meta["REV"] = params.amplicons["V3V4"].rev
 				meta["FWD_RC"] = rc(params.amplicons["V3V4"].fwd)
@@ -208,6 +210,7 @@ def get_project_details(Integer id) {
 				meta["trunclenf"] = params.amplicons["V3V4"].trunclenf.toInteger()
                                 meta["trunclenr"] = params.amplicons["V3V4"].trunclenr.toInteger()
 			} else if ( value.contains("archaea") ) {
+				meta["Protocol"] = "Archaea"
 				meta["FWD"] = params.amplicons["Archaea"].fwd
                                 meta["REV"] = params.amplicons["Archaea"].rev
                                 meta["FWD_RC"] = rc(params.amplicons["Archaea"].fwd)
@@ -215,6 +218,7 @@ def get_project_details(Integer id) {
 				meta["trunclenf"] = params.amplicons["Archaea"].trunclenf.toInteger()
                                 meta["trunclenr"] = params.amplicons["Archaea"].trunclenr.toInteger()
                         } else if ( value.contains("fungi") ) {
+				meta["Protocol"] = "Fungi"
 				meta["FWD"] = params.amplicons["Fungi"].fwd
                                 meta["REV"] = params.amplicons["Fungi"].rev
 				meta["trunclenf"] = params.amplicons["Fungi"].trunclenf.toInteger()

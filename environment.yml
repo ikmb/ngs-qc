@@ -1,10 +1,14 @@
 # You can use this file to create a conda environment for this pipeline:
 #   conda env create -f environment.yml
-name: ngs-qc-1.0
+name: ngs-qc-1.6
 channels:
   - bioconda
   - conda-forge
   - defaults
 dependencies:
   - bioconda::fastqc=0.11.9
-  - bioconda::multiqc=1.11
+  - bioconda::multiqc=1.13a
+  - bioconda::cutadapt
+  - bioconda::bioconductor-dada2=1.22.0
+  - bioconda::bioconductor-shortread=1.52.0
+  
