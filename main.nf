@@ -95,7 +95,7 @@ reads_by_project.mix(tenx_by_project)
 // Enrich channel with LIMS meta data to select projects for specific QC measures
 reads_by_project.groupTuple().flatMap { p,files ->
 	def meta = get_lims_info(p)
-	files.collect { [ p,meta,file(it)] }
+	files.collect { tuple(p,meta,file(it)) }
 }.branch { p,m,f ->
 	ampliseq: m.protocol == "Amplicon_Seq"
 	unknown: m.protocol == "Unknown"
@@ -126,14 +126,11 @@ workflow {
 	// Amplicon QC subworkflow	
 	AMPLICON_QC(
 		reads_by_application.ampliseq.map { p,m,f ->
-			def lib = f.getName().split(/_R[1,2]/)[0]
-			tuple(p,m,lib,f)
+			tuple(p,m,file(f))
 		}
-		.groupTuple(by: [0,1,2])
-		.map { p,m,lib,files -> 
-			tuple(p,m,files) 
-		}
+		.groupTuple(by: [0,1])
 	)
+	ch_qc = ch_qc.mix(AMPLICON_QC.out.rtable)
 
 	// MultiQC reports
 	MULTIQC_RUN(stats_file)
@@ -196,13 +193,13 @@ def get_project_details(Integer id) {
 		if (key == "primers") {
 
 			if ( value.contains("V1-V2") ) {
-				meta["Protocol"] = "V1V2"
+				meta["AmpliconProtocol"] = "V1V2"
 				meta["FWD"] = params.amplicons["V1V2"].fwd
 				meta["REV"] = params.amplicons["V1V2"].rev
 				meta["trunclenf"] = params.amplicons["V1V2"].trunclenf.toInteger()
 				meta["trunclenr"] = params.amplicons["V1V2"].trunclenr.toInteger()
 			} else if ( value.contains("V3-V4") ) {
-				meta["Protocol"] = "V3V4"
+				meta["AmpliconProtocol"] = "V3V4"
 				meta["FWD"] = params.amplicons["V3V4"].fwd
                                 meta["REV"] = params.amplicons["V3V4"].rev
 				meta["FWD_RC"] = rc(params.amplicons["V3V4"].fwd)
@@ -210,7 +207,7 @@ def get_project_details(Integer id) {
 				meta["trunclenf"] = params.amplicons["V3V4"].trunclenf.toInteger()
                                 meta["trunclenr"] = params.amplicons["V3V4"].trunclenr.toInteger()
 			} else if ( value.contains("archaea") ) {
-				meta["Protocol"] = "Archaea"
+				meta["AmpliconProtocol"] = "Archaea"
 				meta["FWD"] = params.amplicons["Archaea"].fwd
                                 meta["REV"] = params.amplicons["Archaea"].rev
                                 meta["FWD_RC"] = rc(params.amplicons["Archaea"].fwd)
@@ -218,7 +215,7 @@ def get_project_details(Integer id) {
 				meta["trunclenf"] = params.amplicons["Archaea"].trunclenf.toInteger()
                                 meta["trunclenr"] = params.amplicons["Archaea"].trunclenr.toInteger()
                         } else if ( value.contains("fungi") ) {
-				meta["Protocol"] = "Fungi"
+				meta["AmpliconProtocol"] = "Fungi"
 				meta["FWD"] = params.amplicons["Fungi"].fwd
                                 meta["REV"] = params.amplicons["Fungi"].rev
 				meta["trunclenf"] = params.amplicons["Fungi"].trunclenf.toInteger()

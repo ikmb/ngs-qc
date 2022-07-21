@@ -1,4 +1,4 @@
-#!/bin/env Rscript
+#!/usr/bin/env Rscript
 ### Start script by running Rscript dada2_v1.10_workflow.R [profile] [ID for run] [Number of threads] The input folder must contain forward and reverse read for the samples R packages: dada2, ShortRead, parallel important output 
 ### files for all profiles
 ###	1. seqtab.Rds = sequence-by-sample tables as R binary object (RDS) 2. seqtab_nochim.Rds = similar to 1., but without chimera; depends on downstream processing which one is used 3. errors/errF.Rds & errors/errR.Rds (the 
@@ -12,10 +12,12 @@ numbases=1e+09
 ### read in script arguments
 args <- commandArgs(trailingOnly = TRUE)
 ### chose from one of 5 profiles with specific options being set
-profiles=c("V1V2","V3V4","PacBio","Archaea","Fungi") profile=args[1] if(! profile %in% profiles){ cat(paste0("Please specify one of these profiles:", paste(profiles, collapse=", "),"\n" )) quit()
-}
+profiles=c("V1V2","V3V4","PacBio","Archaea","Fungi") 
+profile=args[1] 
 ## path = folder where input data is stored; given as second argument
 path="."
+## Cutadapt path
+cutadapt = "cutadapt"
 ## automatically detect runid based on folder name if none is given as third argument; should be given!!
 if(is.na(args[2])){runid=strsplit(rev(strsplit(path, split="/")[[1]])[2],split="_")[[1]][1]}else{runid=args[2]}
 ## Set number of CPUS
@@ -48,62 +50,42 @@ if(profile=="V1V2"){
 ### additional options output folder, argument 4; runid gets appended
 outbase = "."
 ### these can be ignored
-if(is.na(args[4])){doverbose=FALSE}else{doverbose=TRUE} cat(paste0("Running DADA2 Pipeline in ", profile, " profile\n"))
+if(is.na(args[4])){doverbose=FALSE}else{doverbose=TRUE} 
+cat(paste0("Running DADA2 Pipeline in ", profile, " profile\n"))
 ### load packages
-cat("Loading packages...\n") suppressPackageStartupMessages(library(dada2)) version=packageVersion("dada2") set.seed(666) cat(paste0("Running DADA2 version ",version,"\n")) suppressPackageStartupMessages(library(ShortRead))
+cat("Loading packages...\n") 
+suppressPackageStartupMessages(library(dada2)) 
+version=packageVersion("dada2") 
+set.seed(666) 
+cat(paste0("Running DADA2 version ",version,"\n")) 
+suppressPackageStartupMessages(library(ShortRead))
 ### CREATE OUTPUT FOLDERS ETC.
-outdir=paste0(outbase,"/",runid) cat(paste0("All output will be saved in: ",outdir,"\n")) dir.create(outdir,recursive=T,showWarnings=F) dir.create(paste0(outdir,"/plots"),recursive=T,showWarnings=F) 
+outdir=paste0(outbase,"/",runid) 
+cat(paste0("All output will be saved in: ",outdir,"\n")) 
+dir.create(outdir,recursive=T,showWarnings=F) 
+dir.create(paste0(outdir,"/plots"),recursive=T,showWarnings=F) 
 dir.create(paste0(outdir,"/errors"),recursive=T,showWarnings=F)
 ### CREATE LIST FOR COUNTING
 countlist=vector("list", 0)
 #### detect files in input folder
 fns <- list.files(path)
 #fns
-fastqs <- fns[grepl(".fastq.gz$", fns)] fastqs <- sort(fastqs) # Sort ensures forward/reverse reads are in same order
+fastqs <- fns[grepl(".fastq.gz$", fns)] 
+fastqs <- sort(fastqs) # Sort ensures forward/reverse reads are in same order
 ### make sure that R1 is for forward read and R2 for reverse
-##################################################################################
-###									#########
-###	THE PACBIO PROCESSING IS VERY DIFFERENT AND STARTS HERE #########
-###									########
-#################################################################################
-if(profile != "PacBio"){ fnFs <- fastqs[grepl("R1_001.fastq.gz", fastqs)] ## Just the forward read files fnRs <- fastqs[grepl("R2_001.fastq.gz", fastqs)] ## Just the reverse read files
+fnFs <- fastqs[grepl("R1_001.fastq.gz", fastqs)] ## Just the forward read files 
+fnRs <- fastqs[grepl("R2_001.fastq.gz", fastqs)] ## Just the reverse read files
 ## Get sample names from the first part of the forward read filenames
 #sample.names <- sapply(strsplit(fnFs, "(-L1)*_((S[0-9]+)|([ACTG-]+))_L001_R1_001.fastq.gz"), `[`, 1)
-sample.names <- sapply(sapply(strsplit(fnFs, "(-L1)*_((S[0-9]+)|([ACTG-]+))_L001_R1_001.fastq.gz"), `[`, 1), function(x) strsplit(x, split="_")[[1]][2]) sample.names.all = sample.names cat(paste0("Starting processing for 
-",length(sample.names)," samples\n"))
+sample.names <- sapply(sapply(strsplit(fnFs, "(-L1)*_((S[0-9]+)|([ACTG-]+))_L001_R1_001.fastq.gz"), `[`, 1), function(x) strsplit(x, split="_")[[1]][2]) 
+sample.names.all = sample.names 
+cat(paste0("Starting processing for ",length(sample.names)," samples\n"))
 ## Fully specify the path for the fnFs and fnRs
-fnFs <- file.path(path, fnFs) fnRs <- file.path(path, fnRs)
-} else {
-fastqs = fastqs[grepl("i7", fastqs) & grepl("i5",fastqs)]
-#sample.names = gsub("[.]hifi_reads[.]fastq[.]gz$", "", gsub("demultiplex[.]", "", basename(fastqs)))
-sample.names = gsub("[.]fastq.gz$","", basename(fastqs)) sample.names.all = sample.names fnFs=fastqs fnFs <- file.path(path, fnFs)
-}
+fnFs <- file.path(path, fnFs) 
+fnRs <- file.path(path, fnRs)
+
 countlist[[length(countlist)+1]] = data.frame(sample=sample.names, raw=ShortRead::countLines(fnFs)/4)
-#####
-if (profile == "PacBio"){ cat("Profile is", profile,"\nPrimer sequences will be removed using removePrimers() function\n") path.cut <- file.path(outdir, "noprimers") if(!dir.exists(path.cut)) dir.create(path.cut)
-### cut primers from pacbio reads; this is done with an R functions which searches for primers on both sides of the CCS reads which is different from what cutadapt does for short reads
-library(parallel) fnFs.cut <- file.path(path.cut, paste0(sample.names, ".noprimer.fastq.gz")) prime=mclapply(seq_along(fnFs), function(x) removePrimers(fnFs[x], fnFs.cut[x], primer.fwd=FWD, primer.rev=dada2:::rc(REV), orient=TRUE, 
-verbose=doverbose), mc.cores=threads) fnFs = fnFs.cut[file.exists(fnFs.cut)] sample.names.remain=sample.names[file.exists(fnFs.cut)] countlist[[length(countlist)+1]] = data.frame(sample=sample.names.remain, 
-primercut=ShortRead::countLines(fnFs)/4) filt_path <- file.path(outdir, "filtered") filtFs <- file.path(filt_path, paste0(sample.names.remain, ".filtered.fastq.gz"))
-#### Filter input reads
-track <- filterAndTrim(fnFs, filtFs, minQ=3, minLen=1000, maxLen=1600, maxN=0, rm.phix=FALSE, maxEE=2, multithread = threads, qualityType="FastqQuality") filtFs.remain = filtFs[file.exists(filtFs)] sample.names.remain = 
-sample.names.remain[file.exists(filtFs)] countlist[[length(countlist)+1]] = data.frame(sample=sample.names.remain, qc=ShortRead::countLines(filtFs.remain)/4)
- 
-#### dereplicate filtered reads
-derepFs <- derepFastq(filtFs.remain, verbose=TRUE, qualityType="FastqQuality")
-#### infer error rates
-errF <- learnErrors(derepFs, errorEstimationFunction=PacBioErrfun, BAND_SIZE=32, multithread=threads, qualityType="FastqQuality", nbases=numbases, randomize=T, verbose=doverbose) saveRDS(errF, paste0(outdir,"/errors/errF.Rds"))
-#plotErrors(errF)
-#### do the ASV inference
-mergers <- dada(derepFs, err=errF, BAND_SIZE=32, multithread=threads) countlist[[length(countlist)+1]] = data.frame(sample=sample.names.remain, denoised=sapply(mergers, function(x) sum(getUniques(x)))) saveRDS(mergers, 
-paste0(outdir,"/errors/mergers.Rds"))
-                     
-##################################################################################
-###                                                                     #########
-###     		END OF PACBIO PROCESSING #########
-###                                                                     ########
-#################################################################################
-} else {
+
 ##################################################################################
 ###                                                                     #########
 ###     PROCESSING OF THE OTHER AMPLICONS #########
@@ -115,8 +97,14 @@ if(profile %in% c("V3V4","Archaea")){
 ###     HERE IS THE TRIMMING THAT HAPPENS ONLY IN V3V4 AND ARCHAEA #########
 ###                                                                     ########
 #################################################################################
-ca_ver=system2(cutadapt, args = "--version") # Run shell commands from R cat("Profile is", profile,"\nPrimer sequences will be removed using cutadapt version",ca_ver,"\n") path.cut <- file.path(outdir, "cutadapt") 
-if(!dir.exists(path.cut)) dir.create(path.cut) fnFs.cut <- file.path(path.cut, basename(fnFs)) fnRs.cut <- file.path(path.cut, basename(fnRs)) FWD.RC <- dada2:::rc(FWD) REV.RC <- dada2:::rc(REV)
+ca_ver=system2(cutadapt, args = "--version", stdout=TRUE) # Run shell commands from R 
+cat("Profile is", profile,"\nPrimer sequences will be removed using cutadapt version",ca_ver,"\n") 
+path.cut <- file.path(outdir, "cutadapt") 
+if(!dir.exists(path.cut)) dir.create(path.cut) 
+fnFs.cut <- file.path(path.cut, basename(fnFs)) 
+fnRs.cut <- file.path(path.cut, basename(fnRs)) 
+FWD.RC <- dada2:::rc(FWD) 
+REV.RC <- dada2:::rc(REV)
 # Trim FWD and the reverse-complement of REV off of R1 (forward reads)
 R1.flags <- paste("-g", FWD, "-a", REV.RC)
 # Trim REV and the reverse-complement of FWD off of R2 (reverse reads)
@@ -134,7 +122,9 @@ for(i in seq_along(fnFs)) {
 cat("\n")
 #rbind(FWD.ForwardReads = sapply(FWD.orients, primerHits, fn = fnFs.cut[[1]]),
 #    FWD.ReverseReads = sapply(FWD.orients, primerHits, fn = fnRs.cut[[1]]), REV.ForwardReads = sapply(REV.orients, primerHits, fn = fnFs.cut[[1]]), REV.ReverseReads = sapply(REV.orients, primerHits, fn = fnRs.cut[[1]]))
-fnFs=fnFs.cut fnRs=fnRs.cut countlist[[length(countlist)+1]] = data.frame(sample=sample.names, primercut=ShortRead::countLines(fnFs)/4)
+fnFs=fnFs.cut 
+fnRs=fnRs.cut 
+countlist[[length(countlist)+1]] = data.frame(sample=sample.names, primercut=ShortRead::countLines(fnFs)/4)
 } 
 ##################################################################################
 ###                                                                     #########
@@ -150,16 +140,22 @@ fnFs=fnFs.cut fnRs=fnRs.cut countlist[[length(countlist)+1]] = data.frame(sample
 ##################################
 ## Perform filtering and trimming
 ##################################
-filt_path <- file.path(outdir, "filtered") # Place filtered files in filtered/subdirectory filtFs <- file.path(filt_path, paste0(sample.names, "_F_filt.fastq.gz")) filtRs <- file.path(filt_path, paste0(sample.names, 
-"_R_filt.fastq.gz"))
+filt_path <- file.path(outdir, "filtered") # Place filtered files in filtered/subdirectory 
+filtFs <- file.path(filt_path, paste0(sample.names, "_F_filt.fastq.gz")) 
+filtRs <- file.path(filt_path, paste0(sample.names, "_R_filt.fastq.gz"))
 ## Filter the forward and reverse reads: Important to remove primers and low quality regions
-cat("Running quality control of sequencing data...\n") out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=truncLens,
-                     trimLeft=trims,
-                     maxN=0, maxEE=maxEEs, truncQ=5, rm.phix=TRUE,
-                     compress=TRUE, multithread=threads) #
+cat("Running quality control of sequencing data...\n") 
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=truncLens, trimLeft=trims, maxN=0, maxEE=maxEEs, truncQ=5, rm.phix=TRUE, compress=TRUE, multithread=threads) 
 ## Examine quality profiles of filtered reads
-pdf(paste0(outdir,"/plots/plotQualityProfile.filt.pdf"), onefile=T) plotQualityProfile(filtFs[1:2]) plotQualityProfile(filtRs[1:2]) dev.off() exists <- file.exists(filtFs) & file.exists(filtRs) filtFs <- filtFs[exists] filtRs <- 
-filtRs[exists] sample.names=sample.names[exists] countlist[[length(countlist)+1]] = data.frame(sample=sample.names, filtered=ShortRead::countLines(filtFs)/4)
+pdf(paste0(outdir,"/plots/plotQualityProfile.filt.pdf"), onefile=T) 
+plotQualityProfile(filtFs[1:2]) 
+plotQualityProfile(filtRs[1:2]) 
+dev.off() 
+exists <- file.exists(filtFs) & file.exists(filtRs) 
+filtFs <- filtFs[exists] 
+filtRs <- filtRs[exists] 
+sample.names=sample.names[exists] 
+countlist[[length(countlist)+1]] = data.frame(sample=sample.names, filtered=ShortRead::countLines(filtFs)/4)
 #########################
 ## Learn the Error Rates
 #########################
@@ -167,7 +163,9 @@ cat("Learning error rates...\n")
 ## Learn forward error rates
 errF <- learnErrors(filtFs, nbases=numbases, multithread=threads,randomize=T, verbose=doverbose)
 ## Learn reverse error rates
-errR <- learnErrors(filtRs, nbases=numbases, multithread=threads,randomize=T, verbose=doverbose) saveRDS(errF, paste0(outdir,"/errors/errF.Rds")) saveRDS(errR, paste0(outdir,"/errors/errR.Rds"))
+errR <- learnErrors(filtRs, nbases=numbases, multithread=threads,randomize=T, verbose=doverbose)
+saveRDS(errF, paste0(outdir,"/errors/errF.Rds")) 
+saveRDS(errR, paste0(outdir,"/errors/errR.Rds"))
 ## Plot estimated error as sanity check
 #pdf(paste0(outdir,"/plots/plotErrors_F.pdf"), onefile=T) plotErrors(errF, nominalQ=TRUE) dev.off() pdf(paste0(outdir,"/plots/plotErrors_R.pdf"), onefile=T) plotErrors(errR, nominalQ=TRUE) dev.off()
 #########################
@@ -175,40 +173,63 @@ errR <- learnErrors(filtRs, nbases=numbases, multithread=threads,randomize=T, ve
 #########################
 cat("Running dereplication...\n")
 ## Dereplicate the filtered fastq files
-derepRs <- derepFastq(filtRs, verbose=doverbose) derepFs <- derepFastq(filtFs, verbose=doverbose)
+derepRs <- derepFastq(filtRs, verbose=doverbose) 
+derepFs <- derepFastq(filtFs, verbose=doverbose)
 # Name the derep-class objects by the sample names
-names(derepFs) <- sample.names names(derepRs) <- sample.names
+names(derepFs) <- sample.names 
+names(derepRs) <- sample.names
 ####################
 ## Sample Inference
 ####################
 ## Apply the core sequence-variant inference algorithm to the dereplicated data Infer the sequence variants in each sample
-cat("Running dada2 ASV inference...\n") dadaFs <- dada(derepFs, err=errF, multithread=threads, verbose=doverbose) dadaRs <- dada(derepRs, err=errR, multithread=threads, verbose=doverbose) countlist[[length(countlist)+1]] = 
-data.frame(sample=sample.names, denoised=sapply(dadaFs, function(x) sum(getUniques(x)))) if(profile=="Fungi"){
+cat("Running dada2 ASV inference...\n") 
+dadaFs <- dada(derepFs, err=errF, multithread=threads, verbose=doverbose) 
+dadaRs <- dada(derepRs, err=errR, multithread=threads, verbose=doverbose) 
+
+countlist[[length(countlist)+1]] = data.frame(sample=sample.names, denoised=sapply(dadaFs, function(x) sum(getUniques(x)))) 
+
+if(profile=="Fungi"){
 ### Special case for fungi: if merging doesn't work, simply join FWD and REV read
-merger <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, returnRejects=TRUE, verbose=doverbose) concat <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, justConcatenate=TRUE, verbose=doverbose) mergers=merger for(x in 
-sample.names){m=merger[[x]]; c=concat[[x]]; m[!m$accept,] <- c[!m$accept,]; mergers[[x]] <- m}
+merger <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, returnRejects=TRUE, verbose=doverbose) 
+concat <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, justConcatenate=TRUE, verbose=doverbose) 
+mergers=merger 
+for(x in sample.names){m=merger[[x]]; c=concat[[x]]; m[!m$accept,] <- c[!m$accept,]; mergers[[x]] <- m}
 }else{
 ## Merge the denoised forward and reverse reads
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=doverbose)
 }
+
 countlist[[length(countlist)+1]] = data.frame(sample=sample.names, merged=sapply(mergers, function(x) sum(getUniques(x))))
-}
+
+#}
 ############################
 ## Construct sequence table
 ############################
-cat("Constructing sequence table...\n") seqtab <- makeSequenceTable(mergers) countlist[[length(countlist)+1]] = data.frame(sample=sapply(rownames(seqtab), function(x) strsplit(x, split="[.]")[[1]][1]), tabled=rowSums(seqtab)) 
-saveRDS(seqtab, paste0(outdir,"/seqtab.Rds")) cat("Seqtab written to:", paste0(outdir,"/seqtab.Rds"), "\n")
+cat("Constructing sequence table...\n") 
+seqtab <- makeSequenceTable(mergers) 
+countlist[[length(countlist)+1]] = data.frame(sample=sapply(rownames(seqtab), function(x) strsplit(x, split="[.]")[[1]][1]), tabled=rowSums(seqtab)) 
+saveRDS(seqtab, paste0(outdir,"/seqtab.Rds")) 
+cat("Seqtab written to:", paste0(outdir,"/seqtab.Rds"), "\n")
+
 ###################
 ## Remove chimeras
 ###################
 ## Remove chimeric sequences:
-cat("Removing chimeric sequences...\n") seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=threads, verbose=doverbose) countlist[[length(countlist)+1]] = data.frame(sample=sapply(rownames(seqtab.nochim), 
-function(x) strsplit(x, split="[.]")[[1]][1]), nonchim=rowSums(seqtab.nochim)) saveRDS(seqtab.nochim, paste0(outdir,"/seqtab_nochim.Rds")) cat("Chimera-free seqtab written to:", paste0(outdir,"/seqtab_nochim.Rds"), "\n") asv.names 
-= data.frame(name = paste0("ASV_",sprintf("%06d", seq_along(colnames(seqtab.nochim)))), seq = colnames(seqtab.nochim), stringsAsFactors = F)
+cat("Removing chimeric sequences...\n") 
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=threads, verbose=doverbose) 
+countlist[[length(countlist)+1]] = data.frame(sample=sapply(rownames(seqtab.nochim), function(x) strsplit(x, split="[.]")[[1]][1]), nonchim=rowSums(seqtab.nochim)) 
+saveRDS(seqtab.nochim, paste0(outdir,"/seqtab_nochim.Rds")) 
+cat("Chimera-free seqtab written to:", paste0(outdir,"/seqtab_nochim.Rds"), "\n") 
+asv.names = data.frame(name = paste0("ASV_",sprintf("%06d", seq_along(colnames(seqtab.nochim)))), seq = colnames(seqtab.nochim), stringsAsFactors = F)
+
 ####################################
 ## Track reads through the pipeline
 ####################################
-trackreads <- data.frame(do.call("cbind", lapply(countlist, function(x) data.frame(row.names=sample.names.all, x[match(sample.names.all, x$sample),2, drop=F])))) write.table(trackreads, 
-paste0(outdir,"/track_reads.txt"),sep="\t",quote=FALSE) trackreads.rel <- t(apply(trackreads, 1, function(x) x/x[1])) write.table(trackreads.rel, paste0(outdir,"/track_reads_rel.txt"),sep="\t",quote=FALSE)
+trackreads <- data.frame(do.call("cbind", lapply(countlist, function(x) data.frame(row.names=sample.names.all, x[match(sample.names.all, x$sample),2, drop=F])))) 
+write.table(trackreads, paste0(outdir,"/track_reads.txt"),sep="\t",quote=FALSE) 
+trackreads.rel <- t(apply(trackreads, 1, function(x) x/x[1])) 
+write.table(trackreads.rel, paste0(outdir,"/track_reads_rel.txt"),sep="\t",quote=FALSE)
 #system2("chmod", args=c("-R 777", outdir))
 cat("Pipeline successfully completed!\n\n")
+
+quit(save = "no",status = 0,runLast = FALSE)
