@@ -37,7 +37,7 @@ process MULTIQC_PROJECT {
         !params.skip_multiqc
 
         input:
-        tuple val(project),file('*'),file('*')
+        tuple val(project),file('*'),file('*'),file('*')
 
         output:
         path("multiqc_*.html")

@@ -1,5 +1,7 @@
 process DADA2_RUEHLEMANN {
 
+	tag "${project}"
+
 	container 'ikmb/ngs-qc:devel'
 
 	publishDir "${params.outdir}/${project}/AmpliconQC", mode: 'copy'
@@ -9,15 +11,18 @@ process DADA2_RUEHLEMANN {
 
 	output:
 	tuple val(project),path(rtable), emit: rtable
+	path(results)
 
 	script:
-	results = project + "_dada"
-	rtable = "${project}_tracked_reads_mqc.out"
+	results = "Amplicon_QC_" + project
+	rtable = "amplicon_qc_mqc.out"
 	def profile = meta.AmpliconProtocol
 
 	"""
-		dada2_workflow.R $profile $project ${task.cpus}
-		cp ${project}/track_reads.txt $rtable
+		dada2_workflow.R $profile $results ${task.cpus}
+		cp ${results}/track_reads.txt $rtable
+		sed -i.bak 's/^raw/\traw/' $rtable
 	"""
 }
 
+	

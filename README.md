@@ -3,6 +3,11 @@
 # ngs-qc
 QC tools for new sequencing runs (FastQC, FastQ Screen, MultiQC Report)
 
+## Setup instructions
+
+This pipeline retrieves project-specific information from the CCGA Order tool. Make sure the 
+environment variable "LIMS_TOKEN" is set to the authetication token for the order tool. 
+
 ## Usage instructions
 
 This pipeline is currently configured to run on the IKMB DX Cluster. To start the pipeline, you need:

@@ -12,5 +12,5 @@ workflow AMPLICON_QC {
 	)
 
 	emit:
-	wc = DADA2_RUEHLEMANN.out.rtable	
+	qc = DADA2_RUEHLEMANN.out.rtable	
 }

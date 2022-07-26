@@ -97,7 +97,7 @@ reads_by_project.groupTuple().flatMap { p,files ->
 	def meta = get_lims_info(p)
 	files.collect { tuple(p,meta,file(it)) }
 }.branch { p,m,f ->
-	ampliseq: m.protocol == "Amplicon_Seq"
+	ampliseq: m.protocol == "Amplicon_Seq" && m.containsKey("AmpliconProtocol")
 	unknown: m.protocol == "Unknown"
 }.set { reads_by_application }
 
@@ -121,8 +121,6 @@ workflow {
 		screens_by_project = FASTQ_SCREEN.out.qc.groupTuple()
 	}
 
-	reports_by_project = fastqc_by_project.join(screens_by_project)
-
 	// Amplicon QC subworkflow	
 	AMPLICON_QC(
 		reads_by_application.ampliseq.map { p,m,f ->
@@ -130,7 +128,10 @@ workflow {
 		}
 		.groupTuple(by: [0,1])
 	)
-	ch_qc = ch_qc.mix(AMPLICON_QC.out.rtable)
+
+	amplicon_by_project = AMPLICON_QC.out.qc
+
+	reports_by_project = fastqc_by_project.join(screens_by_project).join(amplicon_by_project)
 
 	// MultiQC reports
 	MULTIQC_RUN(stats_file)
@@ -223,6 +224,7 @@ def get_project_details(Integer id) {
 			}
 						
 		}
+
 	}
 	
 	return meta
