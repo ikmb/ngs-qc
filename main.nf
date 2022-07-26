@@ -1,4 +1,8 @@
 #!/usr/bin/env nextflow
+nextflow.enable.dsl=2
+
+@Grab('com.github.groovy-wslite:groovy-wslite:1.1.2')
+import wslite.rest.*
 
 /**
 ===============================
@@ -49,7 +53,7 @@ if (params.help){
 def summary = [:]
 
 demux_folder = file(params.folder)
-run_dir = demux_folder.getName()
+params.run_dir = demux_folder.getName()
 
 stats = file("${params.folder}/Stats/Stats.json")
 
@@ -71,129 +75,163 @@ log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/*/*_R*_001.fastq.gz")
+reads = Channel.fromPath("${demux_folder}/*_*_*/*_R*_001.fastq.gz")
 tenx_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
 
-tenx_reads.map { file -> [ file.getParent().getParent().getName(), file ] }
+tenx_reads.map { f -> [ file(f).getParent().getParent().getName(), f ] }
 	.ifEmpty { log.info "No 10X reads were found, assuming none were included..."}
 	.filter ( f -> f != null )
-	.into { tenx_by_project; tenx_test } 
+	.set { tenx_by_project } 
 
-reads.map { file-> [ file.getParent().getName(), file ] }
+reads.map { f-> [ file(f).getParent().getName(),f ] }
 	.ifEmpty { log.info "No regular projects found, assuming none were included..." }
 	.filter ( f -> f != null )
-	.into { reads_by_project; reads_test }
+	.set { reads_by_project }
 
 reads_by_project.mix(tenx_by_project)
 	.ifEmpty{ exit  1; "Found neither regular sequencing data nor 10X reads - exiting"}
-	.into { all_reads_by_project; all_reads_screen  }
+	.set { all_reads_by_project }
 
-process fastqc {
-	
-	label 'fastqc'
+// Enrich channel with LIMS meta data to select projects for specific QC measures
+reads_by_project.groupTuple().flatMap { p,files ->
+	def meta = get_lims_info(p)
+	files.collect { tuple(p,meta,file(it)) }
+}.branch { p,m,f ->
+	ampliseq: m.protocol == "Amplicon_Seq" && m.containsKey("AmpliconProtocol")
+	unknown: m.protocol == "Unknown"
+}.set { reads_by_application }
 
-	tag "${project}|${fastq}"
+// MODULES and WORKFLOWS
+include { FASTQC } from "./modules/fastqc"
+include { FASTQ_SCREEN } from "./modules/fastq_screen"
+include { AMPLICON_QC } from "./workflows/amplicon_qc"
+include { MULTIQC_RUN; MULTIQC_PROJECT } from './modules/multiqc'
 
-	publishDir "${params.outdir}/${project}/fastqc", mode: 'copy' , overwrite: true
+ch_qc = Channel.from([])
 
-	scratch true
+workflow {
 
-	stageOutMode 'rsync'
+	FASTQC(all_reads_by_project)
+	ch_qc = ch_qc.mix(FASTQC.out.zip)
+	fastqc_by_project = FASTQC.out.zip.groupTuple()
 
-	input:
-	set val(project),path(fastq) from all_reads_by_project
-
-	output:
-	set val(project), path("*.zip") into fastqc_reports
-	path("*.html")
-	
-	script:
-	
-	"""
-		fastqc -t 1 $fastq	
-	"""
-
-}
-
-if (params.fastq_screen_config) {
-
-	process screen_contaminations {
-
-		tag "${project}|${fastq}"
-
-		input:
-		set val(project),path(fastq) from all_reads_screen
-
-		output:
-		set val(project),path("*_screen.txt") into contaminations
-
-		script:
-
-		"""
-			fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
-		"""
-
+	if (params.fastq_screen_config) {
+		FASTQ_SCREEN(all_reads_by_project)
+		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.qc)
+		screens_by_project = FASTQ_SCREEN.out.qc.groupTuple()
 	}
 
-} else {
-	contaminations = Channel.empty()
-}
+	// Amplicon QC subworkflow	
+	AMPLICON_QC(
+		reads_by_application.ampliseq.map { p,m,f ->
+			tuple(p,m,file(f))
+		}
+		.groupTuple(by: [0,1])
+	)
 
-fastqc_by_project = fastqc_reports.groupTuple()
-screens_by_project = contaminations.groupTuple()
-reports_by_project = fastqc_by_project.join(screens_by_project)
+	amplicon_by_project = AMPLICON_QC.out.qc
 
-process multiqc_run {
+	reports_by_project = fastqc_by_project.join(screens_by_project).join(amplicon_by_project)
 
-	publishDir "${params.outdir}/MultiQC", mode: 'copy', overwrite: true
-
-	label 'multiqc'
-
-	stageOutMode 'rsync'
-
-	input:
-	file(json) from stats_file
-
-	output:
-	file(multiqc)
-
-	script:
-	multiqc = "multiqc_demux.html"	
-	"""
-		multiqc -b "Run ${run_dir}" -n $multiqc .
-	"""
+	// MultiQC reports
+	MULTIQC_RUN(stats_file)
+	MULTIQC_PROJECT(reports_by_project)
 
 }
- 
-process multiqc_files {
-
-	label 'multiqc' 
-
-	tag "${project}"
-
-	publishDir "${params.outdir}/${project}/MultiQC", mode: 'copy', overwrite: true
-
-	stageOutMode 'rsync'
-
-	when:
-	!params.skip_multiqc
-
-	input:
-	set val(project),file('*'),file('*') from reports_by_project
-
-	output:
-	path("multiqc_*.html") 
-
-	script:
-	"""
-		cp ${baseDir}/assets/multiqc_config.yaml . 
-		cp ${baseDir}/assets/ikmblogo.png . 
-		partition_multiqc.pl --name ${project} --chunk ${params.chunk_size} --title "QC for ${project} ${run_dir}" --config multiqc_config.yaml 
-	"""		
-}
-
+	
 workflow.onComplete { 
 
 	log.info "QC Pipeline successful: ${workflow.success}"
 
+}
+
+// Functions to retrieve LIMS information about projects
+def get_lims_info(String name) {
+
+	def project_name = name.trim()
+	def url_path = "/project/info/${project_name}"
+	RESTClient client = new RESTClient("http://172.21.99.59/restapi")
+	def response = client.get( path: url_path,
+		accept: ContentType.JSON,
+		connectTimeout: 5000,
+                readTimeout: 10000,
+                followRedirects: false,
+                useCaches: false,
+                sslTrustAllCerts: true 
+	)
+	def external_id = response.json.external_id
+	def meta = get_project_details(external_id)
+
+	return meta
+}
+
+def get_project_details(Integer id) {
+
+	def meta = [:]
+	meta["protocol"] = "Unknown"
+	def url_path = "/get_order_info/order_id/${id}"
+	RESTClient client = new RESTClient("http://172.21.96.85/IKMB_order_service/api")
+        def response = client.post( path: url_path,
+                accept: ContentType.JSON,
+                headers:[Authorization:  System.getenv('LIMS_TOKEN')],
+                connectTimeout: 5000,
+                readTimeout: 10000,
+                followRedirects: false,
+                useCaches: false,
+                sslTrustAllCerts: true
+        )
+
+	def data = response.json.info_dict.data
+	data.each { e ->
+		def key = e.type
+		def value = e.value
+		if (key == "Please prepare") {
+			key = "protocol"
+		} else if (key == "We detect the variable region") {
+			key = "primers"
+		}
+		meta[key] = value
+		if (key == "primers") {
+
+			if ( value.contains("V1-V2") ) {
+				meta["AmpliconProtocol"] = "V1V2"
+				meta["FWD"] = params.amplicons["V1V2"].fwd
+				meta["REV"] = params.amplicons["V1V2"].rev
+				meta["trunclenf"] = params.amplicons["V1V2"].trunclenf.toInteger()
+				meta["trunclenr"] = params.amplicons["V1V2"].trunclenr.toInteger()
+			} else if ( value.contains("V3-V4") ) {
+				meta["AmpliconProtocol"] = "V3V4"
+				meta["FWD"] = params.amplicons["V3V4"].fwd
+                                meta["REV"] = params.amplicons["V3V4"].rev
+				meta["FWD_RC"] = rc(params.amplicons["V3V4"].fwd)
+                                meta["REV_RC"] = rc(params.amplicons["V3V4"].rev)
+				meta["trunclenf"] = params.amplicons["V3V4"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["V3V4"].trunclenr.toInteger()
+			} else if ( value.contains("archaea") ) {
+				meta["AmpliconProtocol"] = "Archaea"
+				meta["FWD"] = params.amplicons["Archaea"].fwd
+                                meta["REV"] = params.amplicons["Archaea"].rev
+                                meta["FWD_RC"] = rc(params.amplicons["Archaea"].fwd)
+                                meta["REV_RC"] = rc(params.amplicons["Archaea"].rev)
+				meta["trunclenf"] = params.amplicons["Archaea"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["Archaea"].trunclenr.toInteger()
+                        } else if ( value.contains("fungi") ) {
+				meta["AmpliconProtocol"] = "Fungi"
+				meta["FWD"] = params.amplicons["Fungi"].fwd
+                                meta["REV"] = params.amplicons["Fungi"].rev
+				meta["trunclenf"] = params.amplicons["Fungi"].trunclenf.toInteger()
+                                meta["trunclenr"] = params.amplicons["Fungi"].trunclenr.toInteger()
+			}
+						
+		}
+
+	}
+	
+	return meta
+}
+
+def rc(String seq) {
+	def complements = [ A:'T', T:'A', U:'A', G:'C', C:'G', Y:'R', R:'Y', S:'S', W:'W', K:'M', M:'K', B:'V', D:'H', H:'D', V:'B', N:'N' ]
+        comp = seq.reverse().toUpperCase().collect { base -> complements[ base ] ?: 'X' }.join()
+        return comp
 }
