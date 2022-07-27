@@ -11,7 +11,7 @@ process FASTQ_SCREEN {
 	script:
 
 	"""
-		fastq_screen --threads ${task.cpus} --force --subset 100000 --conf ${params.fastq_screen_config} --aligner bowtie2 $left
+		fastq_screen --threads ${task.cpus} --force --subset 100000 --conf ${params.fastq_screen_config} --aligner bwa $left
 	"""
 
 }

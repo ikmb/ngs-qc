@@ -8,7 +8,7 @@ process FASTP {
 	tuple val(project),val(lib),path(reads)
 
 	output:
-	tuple val(project),path(ltrim),path(rtrim), emit: reads
+	tuple val(project),val(lib),path(ltrim),path(rtrim), emit: reads
 	path(json), emit: json
 
 	script:
@@ -21,7 +21,7 @@ process FASTP {
         html = file(lreads).getSimpleName() + ".fastp.html"
 	
 	"""
-		fastp -c --in1 $lreads --in2 $rreads --out1 $ltrim --out2 $rtrim --detect_adapter_for_pe -w ${task.cpus} -j $json -h $html --length_required 35 --reads_to_process 150000
+		fastp -c --in1 $lreads --in2 $rreads --out1 $ltrim --out2 $rtrim --detect_adapter_for_pe -w ${task.cpus} -j $json -h $html --length_required 35 --reads_to_process 200000 
 	"""
 
 }
