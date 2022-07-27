@@ -103,6 +103,7 @@ reads_by_project.groupTuple().flatMap { p,files ->
 
 // MODULES and WORKFLOWS
 include { FASTQC } from "./modules/fastqc"
+include { FASTP as FASTP_FILTER } from "./modules/fastp"
 include { FASTQ_SCREEN } from "./modules/fastq_screen"
 include { AMPLICON_QC } from "./workflows/amplicon_qc"
 include { MULTIQC_RUN; MULTIQC_PROJECT } from './modules/multiqc'
@@ -116,7 +117,17 @@ workflow {
 	fastqc_by_project = FASTQC.out.zip.groupTuple()
 
 	if (params.fastq_screen_config) {
-		FASTQ_SCREEN(all_reads_by_project)
+
+		FASTP_FILTER(
+			// Remove any non-read data, like 10X I files
+			all_reads_by_project.filter{ p,f -> f =~ /.*_R[1,2]_001.fastq.gz/ }.map { p,f ->
+				def m = f.getBaseName().split("_R[1,2]")[0]
+				tuple(p,m,f)
+			}.groupTuple(by: [0,1])
+		)
+		FASTQ_SCREEN(
+			FASTP_FILTER.out.reads
+		)
 		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.qc)
 		screens_by_project = FASTQ_SCREEN.out.qc.groupTuple()
 	}
