@@ -106,6 +106,7 @@ include { FASTQC } from "./modules/fastqc"
 include { FASTQ_SCREEN } from "./modules/fastq_screen"
 include { AMPLICON_QC } from "./workflows/amplicon_qc"
 include { MULTIQC_RUN; MULTIQC_PROJECT } from './modules/multiqc'
+include { CONTAMINATIONS } from "./workflows/contaminations.nf"
 
 ch_qc = Channel.from([])
 
@@ -115,10 +116,13 @@ workflow {
 	ch_qc = ch_qc.mix(FASTQC.out.zip)
 	fastqc_by_project = FASTQC.out.zip.groupTuple()
 
-	if (params.fastq_screen_config) {
-		FASTQ_SCREEN(all_reads_by_project)
-		ch_qc = ch_qc.mix(FASTQ_SCREEN.out.qc)
-		screens_by_project = FASTQ_SCREEN.out.qc.groupTuple()
+	if (params.bloomfilter) {
+
+		CONTAMINATIONS(
+			all_reads_by_project
+		)
+
+		screens_by_project = CONTAMINATIONS.out.qc
 	}
 
 	// Amplicon QC subworkflow	

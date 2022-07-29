@@ -9,4 +9,5 @@ dependencies:
   - bioconda::cutadapt=4.1
   - bioconda::bioconductor-dada2=1.22.0
   - bioconda::bioconductor-shortread=1.52.0
-  
+  - bioconda::bwa=0.7.17
+  - bioconda::samtools=1.13

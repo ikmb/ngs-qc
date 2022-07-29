@@ -1,9 +1,9 @@
 process FASTQ_SCREEN {
 
-	tag "${project}|${fastq}"
+	tag "${project}|${left}"
 
 	input:
-	tuple val(project),path(fastq)
+	tuple val(project),path(left),path(right)
 
 	output:
 	tuple val(project),path("*_screen.txt"), emit: qc
@@ -11,7 +11,7 @@ process FASTQ_SCREEN {
 	script:
 
 	"""
-		fastq_screen --force --subset 200000 --conf ${params.fastq_screen_config} --aligner bowtie2 $fastq
+		fastq_screen --threads ${task.cpus} --force --subset 100000 --conf ${params.fastq_screen_config} --aligner bwa $left
 	"""
 
 }
