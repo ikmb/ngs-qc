@@ -45,15 +45,22 @@ if ($help) {
 }
 
 
-my @files = glob("*") ;
+my @files = glob("*.tsv *.zip *_mqc.out") ;
 my %bucket;
 
 die "Must provide a name (--name) and title (--title)!\n" unless (defined $name && defined $title);
 
 foreach my $file (@files) {
 
-	my $trunk = (split /_[RI][0-9]_/, $file)[0] ;
+	my $trunk = "";
 
+	if ($file =~ /.*_summary.tsv/) {
+		$trunk = (split "_summary", $file)[0];
+	} elsif ($file =~ /.*_[RI][0-9]_001.*/) {
+		$trunk = (split /_[RI][0-9]_001/, $file)[0] ;
+	} else {
+		$trunk = (split /\./, $file)[0];
+	}
 	if (exists $bucket{$trunk}) {
 		push( @{ $bucket{$trunk} }, $file )
 	} else {

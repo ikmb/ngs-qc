@@ -5,7 +5,7 @@ process BIOBLOOM_CATEGORIZER {
 	tag "${project}|${library}"
 
 	input:
-	tuple val(project),val(library),path(reads)
+	tuple val(project),val(library),path(left),path(right)
 
 	output:
 	tuple val(project),path(results), emit: results
@@ -14,10 +14,6 @@ process BIOBLOOM_CATEGORIZER {
 	results = library + "_summary.tsv"
 
 	"""
-		zcat $reads[0] | head -n 400000 | gzip -c > left.fq.gz
-		zcat $reads[1] | head -n 400000 | gzip -c > right.fq.gz
-
-		biobloomcategorizer -p $library -t ${task.cpus} -e -f "${params.bloomfilter}" left.fq.gz right.fq.gz
-		rm left.fq.gz right.fq.gz
+		biobloomcategorizer -p $library -t ${task.cpus} -e -f "${params.bloomfilter}" $left $right
 	"""	
 }

@@ -14,7 +14,7 @@ process DADA2_RUEHLEMANN {
 	path(results)
 
 	script:
-	results = "Amplicon_QC_" + project
+	results = "dada2"
 	rtable = "amplicon_qc_mqc.out"
 	def profile = meta.AmpliconProtocol
 
