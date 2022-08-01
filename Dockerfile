@@ -5,7 +5,7 @@ LABEL authors="Marc Hoeppner" \
 COPY environment.yml /
 
 RUN conda env create -f /environment.yml && conda clean -a
-ENV PATH /opt/conda/envs/ngs-qc-1.6/bin:/opt/fastq_screen:$PATH
+ENV PATH /opt/conda/envs/ngs-qc-1.6/bin:/opt/biobloom/bin:$PATH
 
 RUN apt-get -y update && apt-get -y install procps make gcc  git build-essential autotools-dev automake libsparsehash-dev libboost-all-dev \
 cmake zlib1g-dev coreutils

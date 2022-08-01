@@ -114,6 +114,8 @@ workflow {
 	FASTQC(all_reads_by_project)
 	ch_qc = ch_qc.mix(FASTQC.out.zip)
 	fastqc_by_project = FASTQC.out.zip.groupTuple()
+	screens_by_project = Channel.from([])
+	amplicon_by_project = Channel.from([])
 
 	if (params.bloomfilter) {
 
