@@ -1,7 +1,5 @@
 process BIOBLOOM_CATEGORIZER {
 
-	container "docker://ikmb/outbreak-monitoring:latest"
-
 	tag "${project}|${library}"
 
 	input:

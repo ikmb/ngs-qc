@@ -7,7 +7,16 @@ COPY environment.yml /
 RUN conda env create -f /environment.yml && conda clean -a
 ENV PATH /opt/conda/envs/ngs-qc-1.6/bin:/opt/fastq_screen:$PATH
 
-RUN apt-get update && apt-get -y install procps wget coreutils
+RUN apt-get -y update && apt-get -y install procps make gcc  git build-essential autotools-dev automake libsparsehash-dev libboost-all-dev \
+cmake zlib1g-dev coreutils
 
-RUN cd /opt && cd /opt && wget https://github.com/StevenWingett/FastQ-Screen/archive/refs/tags/v0.15.2.tar.gz \
-	&& tar -xvf v0.15.2.tar.gz && mv FastQ-Screen-0.15.2 fastq_screen && rm *.tar.gz
+RUN cd /opt && \
+        git clone https://github.com/simongog/sdsl-lite.git && \
+        cd sdsl-lite && \
+        ./install.sh /usr/local/
+
+RUN cd /opt && \
+        wget https://github.com/bcgsc/biobloom/releases/download/2.3.1/biobloomtools-2.3.1.tar.gz && \
+        tar -xvf biobloomtools-2.3.1.tar.gz && rm biobloomtools-2.3.1.tar.gz && cd  biobloomtools-2.3.1 && \
+        ./configure --prefix=/opt/biobloom && make install && \
+        cd /opt && rm -Rf biobloomtools-2.3.1
