@@ -71,7 +71,6 @@ log.info "-------------------------------------"
 log.info "Date			${workflow.start}"
 log.info "Work dir		${workflow.workDir}"
 log.info "Target folder:		${params.folder}"
-log.info "FastqScreen config:	${params.fastq_screen_config}"
 
 // Get list of all project folders
 
@@ -164,7 +163,12 @@ def get_lims_info(String name) {
                 sslTrustAllCerts: true 
 	)
 	def external_id = response.json.external_id
-	def meta = get_project_details(external_id)
+	def meta = [:]
+
+	if (external_id) {
+		meta = get_project_details(external_id)
+	} 
+	
 
 	return meta
 }

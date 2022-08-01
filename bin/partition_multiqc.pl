@@ -113,6 +113,10 @@ foreach my $key (sort keys %bucket ) {
 
 }
 
+foreach my $g (@general) {
+	push(@output,$g);
+}
+
 my $file_name = "multiqc_report_" . $name . "_" . $first_key . "-" . $this_key . ".html";
 run_multiqc($file_name,$title,$config,@output);
 
