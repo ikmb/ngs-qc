@@ -49,18 +49,23 @@ my @files = glob("*.tsv *.zip *_mqc.out") ;
 my %bucket;
 
 die "Must provide a name (--name) and title (--title)!\n" unless (defined $name && defined $title);
+my @general;
 
 foreach my $file (@files) {
 
 	my $trunk = "";
 
-	if ($file =~ /.*_summary.tsv/) {
-		$trunk = (split "_summary", $file)[0];
+	if ($file =~ /.*_mqc.out/) {
+		push(@general,$file);
+	} elsif ($file =~ /.*_summary.tsv/) {
+		$trunk = (split /_summary/, $file)[0];
 	} elsif ($file =~ /.*_[RI][0-9]_001.*/) {
 		$trunk = (split /_[RI][0-9]_001/, $file)[0] ;
 	} else {
 		$trunk = (split /\./, $file)[0];
-	}
+	}	
+	next if ($trunk eq "");
+
 	if (exists $bucket{$trunk}) {
 		push( @{ $bucket{$trunk} }, $file )
 	} else {
@@ -84,6 +89,9 @@ foreach my $key (sort keys %bucket ) {
 
 	if ($counter > $chunk) {
 	
+		foreach my $g (@general) {
+                	push(@output,$g);
+        	}
 		printf STDERR "Counter is: " .  $counter . "\n";
 		my $file_name = "multiqc_report_" . $name . "_" . $first_key . "-" . $this_key . ".html" ;
 		
@@ -103,6 +111,10 @@ foreach my $key (sort keys %bucket ) {
 
 	$this_key = $key;
 
+}
+
+foreach my $g (@general) {
+	push(@output,$g);
 }
 
 my $file_name = "multiqc_report_" . $name . "_" . $first_key . "-" . $this_key . ".html";
