@@ -114,8 +114,8 @@ workflow {
 	FASTQC(all_reads_by_project)
 	ch_qc = ch_qc.mix(FASTQC.out.zip)
 	fastqc_by_project = FASTQC.out.zip.groupTuple()
-	screens_by_project = Channel.from([])
-	amplicon_by_project = Channel.from([])
+
+	reports = Channel.from([])
 
 	if (params.bloomfilter) {
 
@@ -123,7 +123,7 @@ workflow {
 			all_reads_by_project
 		)
 
-		screens_by_project = CONTAMINATIONS.out.qc
+		reports = reports.mix(CONTAMINATIONS.out.qc)
 	}
 
 	// Amplicon QC subworkflow	
@@ -134,13 +134,13 @@ workflow {
 		.groupTuple(by: [0,1])
 	)
 
-	amplicon_by_project = AMPLICON_QC.out.qc
+	reports = reports.mix(AMPLICON_QC.out.qc)
 
-	reports_by_project = fastqc_by_project.join(screens_by_project).join(amplicon_by_project)
+	//reports_by_project = fastqc_by_project.join(screens_by_project).join(amplicon_by_project)
 
 	// MultiQC reports
 	MULTIQC_RUN(stats_file)
-	MULTIQC_PROJECT(reports_by_project)
+	MULTIQC_PROJECT(reports.groupTuple())
 
 }
 	
