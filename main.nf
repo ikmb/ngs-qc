@@ -117,6 +117,8 @@ workflow {
 
 	reports = Channel.from([])
 
+	reports = reports.mix(FASTQC.out.zip)
+
 	if (params.bloomfilter) {
 
 		CONTAMINATIONS(
@@ -135,12 +137,15 @@ workflow {
 	)
 
 	reports = reports.mix(AMPLICON_QC.out.qc)
-
+	
 	//reports_by_project = fastqc_by_project.join(screens_by_project).join(amplicon_by_project)
 
 	// MultiQC reports
 	MULTIQC_RUN(stats_file)
-	MULTIQC_PROJECT(reports.groupTuple())
+	MULTIQC_PROJECT(
+		reports.groupTuple()
+	)
+
 
 }
 	

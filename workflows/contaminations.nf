@@ -18,8 +18,9 @@ workflow CONTAMINATIONS {
 			FASTP.out.reads
                 )
 
-                screens_by_project = BIOBLOOM_CATEGORIZER.out.results.groupTuple()
+                //screens_by_project = BIOBLOOM_CATEGORIZER.out.results.groupTuple()
 
 	emit:
-	qc = screens_by_project
+	qc = BIOBLOOM_CATEGORIZER.out.results
+	//qc = screens_by_project
 }
