@@ -11,7 +11,7 @@ report_comment: >
     This report has been generated automatically by the CCGA QC pipeline.
 
 report_header_info:
-    - Contact E-mail: "m.hoeppner@ikmb.uni-kiel.de"
+    - Contact E-mail: "ccga@ikmb.uni-kiel.de"
     - Application Type: "QC"
 
 top_modules:

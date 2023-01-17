@@ -56,11 +56,14 @@ demux_folder = file(params.folder)
 params.run_dir = demux_folder.getName()
 
 stats = file("${params.folder}/Stats/Stats.json")
+stats_atac = file("${params.folder}/*/Stats/Stats.json")
 
-if (!stats.exists()) {
-	stats_file = Channel.empty()
+if (!stats_atac.isEmpty() ) {
+	stats_file = Channel.fromPath(stats_atac[0])
+} else if (stats.exists()) {
+	stats_file = Channel.fromPath(stats) 
 } else {
-	stats_file = Channel.fromPath(stats)
+	stats_file = Channel.empty()
 }
 
 // Info screen
@@ -75,12 +78,21 @@ log.info "Target folder:		${params.folder}"
 // Get list of all project folders
 
 reads = Channel.fromPath("${demux_folder}/*_*_*/*_R*_001.fastq.gz")
-tenx_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
+tenx_standard_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
+tenx_atac_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*-*/*_001.fastq.gz")
 
-tenx_reads.map { f -> [ file(f).getParent().getParent().getName(), f ] }
-	.ifEmpty { log.info "No 10X reads were found, assuming none were included..."}
+tenx_standard_reads.map { f -> [ file(f).getParent().getParent().getName(), f ] }
+	.ifEmpty { log.info "No regular 10X reads were found, assuming none were included..."}
 	.filter ( f -> f != null )
-	.set { tenx_by_project } 
+	.set { tenx_standard_by_project } 
+
+// /mnt/demux/illumina/230113_M05583_0213_000000000-DJC8H/SF_Jinru_Hydra_scATAC/DJC8H/22Nov728-L1/
+tenx_atac_reads.map { f -> [ file(f).getParent().getParent().getParent().getName(), f ] }
+        .ifEmpty { log.info "No 10X ATAC reads were found, assuming none were included..."}
+        .filter ( f -> f != null )
+        .set { tenx_atac_by_project }
+
+tenx_by_project = tenx_atac_by_project.mix(tenx_standard_by_project)
 
 reads.map { f-> [ file(f).getParent().getName(),f ] }
 	.ifEmpty { log.info "No regular projects found, assuming none were included..." }
