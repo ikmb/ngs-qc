@@ -41,3 +41,8 @@ nextflow run ikmb/ngs-qc --folder /mnt/demux/illumina/<PROJECT> --outdir /mnt/de
 
 ```
 
+## Other options
+
+### `--sub_qc` [ default = true ]
+
+Enable or disable sub pipelines. 
