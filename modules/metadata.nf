@@ -2,7 +2,7 @@ process METADATA {
 
 	tag "${project}"
 
-	container 'ikmb/hla:1.6'
+	container 'ikmb/ngs-qc:devel'
 
         publishDir "${prams.outdir}/${project}", mode: 'copy'
 
