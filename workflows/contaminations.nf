@@ -8,11 +8,13 @@ workflow CONTAMINATIONS {
 
 	main:
 
-		FASTP(
-			reads.filter{ p,f -> f =~ /.*_R[1,2]_001.fastq.gz/ }.map { p,f ->
-                                def m = f.getBaseName().split("_R[1,2]")[0]
+		grouped_reads = reads.filter{ p,f -> f =~ /.*_R[1,2]_001.fastq.gz/ }.map { p,f ->
+                                def m = f.getBaseName().split("_R[1,2]_")[0]
                                 tuple(p,m,f)
                         }.groupTuple(by: [0,1]).map { p,l,files -> tuple(p,l,files.sort()) }
+
+		FASTP(
+			grouped_reads
 		)
                 BIOBLOOM_CATEGORIZER(
 			FASTP.out.reads

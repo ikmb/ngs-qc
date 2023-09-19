@@ -6,6 +6,9 @@ process DADA2_RUEHLEMANN {
 
 	publishDir "${params.outdir}/${project}/AmpliconQC", mode: 'copy'
 
+	when:
+	params.sub_qc
+
 	input:
 	tuple val(project),val(meta),path(reads)
 
