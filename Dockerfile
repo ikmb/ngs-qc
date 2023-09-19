@@ -20,3 +20,10 @@ RUN cd /opt && \
         tar -xvf biobloomtools-2.3.1.tar.gz && rm biobloomtools-2.3.1.tar.gz && cd  biobloomtools-2.3.1 && \
         ./configure --prefix=/opt/biobloom && make install && \
         cd /opt && rm -Rf biobloomtools-2.3.1
+
+RUN cd /opt && wget https://cache.ruby-lang.org/pub/ruby/3.2/ruby-3.2.2.tar.gz && tar -xvf ruby-3.2.2.tar.gz && cd ruby-3.2.2 && ./configure && make && make install
+RUN cd /opt && rm -Rf ruby*
+
+RUN gem install rubyXL
+RUN gem install json
+RUN gem install rest-client

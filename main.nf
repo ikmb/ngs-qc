@@ -112,16 +112,22 @@ reads_by_project.groupTuple().flatMap { p,files ->
 	unknown: m.protocol == "Unknown"
 }.set { reads_by_application }
 
+
 // MODULES and WORKFLOWS
 include { FASTQC } from "./modules/fastqc"
 include { FASTQ_SCREEN } from "./modules/fastq_screen"
 include { AMPLICON_QC } from "./workflows/amplicon_qc"
 include { MULTIQC_RUN; MULTIQC_PROJECT } from './modules/multiqc'
 include { CONTAMINATIONS } from "./workflows/contaminations.nf"
+include { METADATA } from "./modules/metadata.nf"
 
 ch_qc = Channel.from([])
 
 workflow {
+
+	METADATA(
+		all_reads_by_project.groupTuple().map { p,files -> p }
+	)
 
 	FASTQC(all_reads_by_project)
 	ch_qc = ch_qc.mix(FASTQC.out.zip)
