@@ -1,6 +1,6 @@
 # You can use this file to create a conda environment for this pipeline:
 #   conda env create -f environment.yml
-name: ngs-qc-1.6
+name: ngs-qc-1.7
 channels:
   - bioconda
   - conda-forge

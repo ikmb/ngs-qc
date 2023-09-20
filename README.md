@@ -46,3 +46,7 @@ nextflow run ikmb/ngs-qc --folder /mnt/demux/illumina/<PROJECT> --outdir /mnt/de
 ### `--sub_qc` [ default = true ]
 
 Enable or disable sub pipelines. 
+
+### `--metadata` [ default = true ]
+
+Generate a metadata sheet in XLSX format. Can be set to false to skip. 
