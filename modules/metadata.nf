@@ -2,15 +2,15 @@ process METADATA {
 
 	tag "${project}"
 
-	container 'ikmb/ngs-qc:devel'
+	container 'ikmb/ngs-qc:1.7'
 
-        publishDir "${prams.outdir}/${project}", mode: 'copy'
+        publishDir "${params.outdir}/${project}", mode: 'copy'
 
 	input:
-	val(project)
+	tuple val(project),path(fastqs)
 
 	output:
-	val("*.xlsx"), emit: xlsx
+	path("*.xlsx"), emit: xlsx
 
 	script:
 

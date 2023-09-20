@@ -136,9 +136,12 @@ ch_qc = Channel.from([])
 
 workflow {
 
-	METADATA(
-		all_reads_by_project.groupTuple().map { p,files -> p }
-	)
+	// Produce a generic CCGA metadata sheet in XLSX format
+	if (params.metadata) {
+		METADATA(
+			all_reads_by_project.groupTuple()
+		)
+	}
 
 	FASTQC(all_reads_by_project)
 	ch_qc = ch_qc.mix(FASTQC.out.zip)
