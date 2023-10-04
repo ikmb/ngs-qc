@@ -77,7 +77,10 @@ log.info "Target folder:		${params.folder}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/*_*_*/*_R*_001.fastq.gz")
+reads = Channel.fromPath("${demux_folder}/[A-Z][A-Z]*_*/*_R*_001.fastq.gz")
+//diagx_reads = Channel.fromPath("${demux_folder}/NGS_Diagnostik-Exome/*_001.fastq.gz")
+
+
 tenx_standard_reads = Channel.fromPath("${demux_folder}/[A-Z][A-Z]_*/[A-Z0-9]*/*_001.fastq.gz", followLinks: false) 
 tenx_atac_reads = Channel.fromPath("${demux_folder}/*/[A-Z0-9]*/*-*/*_001.fastq.gz")
 tenx_cite_reads = Channel.fromPath("${demux_folder}/[A-Z][A-Z]_*/*/[A-Z]*/*_001.fastq.gz", followLinks: false)
