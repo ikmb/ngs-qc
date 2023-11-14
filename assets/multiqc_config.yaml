@@ -8,5 +8,5 @@ extra_fn_clean_exts:
     - _001
 
 report_header_info:
-    - Contact E-mail: "m.hoeppner@ikmb.uni-kiel.de"
+    - Contact E-mail: "ccga@ikmb.uni-kiel.de"
     - Application Type: "QC"
