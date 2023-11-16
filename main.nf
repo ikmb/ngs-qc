@@ -193,9 +193,6 @@ workflow.onComplete {
 // Functions to retrieve LIMS information about projects
 def get_lims_info(String name) {
 
-
-	log.info name
-
 	def project_name = name.trim()
 	def url_path = "/project/info/${project_name}"
 	RESTClient client = new RESTClient("http://172.21.99.59/restapi")
