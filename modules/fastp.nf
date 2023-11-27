@@ -8,7 +8,7 @@ process FASTP {
 	tuple val(project),val(lib),path(reads)
 
 	output:
-	tuple val(project),val(lib),path(ltrim),path(rtrim), emit: reads
+	tuple val(project),val(lib),path(ltrim),path(rtrim), optional: true, emit: reads
 	path(json), emit: json
 
 	script:
