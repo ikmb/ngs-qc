@@ -77,7 +77,7 @@ log.info "Target folder:		${params.folder}"
 
 // Get list of all project folders
 
-reads = Channel.fromPath("${demux_folder}/[A-Z][A-Za-z]*_*[0-9]/*_R*_001.fastq.gz")
+reads = Channel.fromPath("${demux_folder}/[A-Z][A-Za-z]*_*/*_R*_001.fastq.gz").filter { !it.toString().contains("Undetermined") }  
 //diagx_reads = Channel.fromPath("${demux_folder}/NGS_Diagnostik-Exome/*_001.fastq.gz")
 
 
