@@ -195,7 +195,7 @@ def get_lims_info(String name) {
 
 	def project_name = name.trim()
 	def url_path = "/project/info/${project_name}"
-	RESTClient client = new RESTClient("http://lab-order.i-kmb.de")
+	RESTClient client = new RESTClient("http://lab-order.i-kmb.de/IKMB_order_service/api")
 	def response = client.get( path: url_path,
 		accept: ContentType.JSON,
 		connectTimeout: 5000,
@@ -220,7 +220,7 @@ def get_project_details(Integer id) {
 	def meta = [:]
 	meta["protocol"] = "Unknown"
 	def url_path = "/get_order_info/order_id/${id}"
-	RESTClient client = new RESTClient("http://lab-order.i-kmb.de")
+	RESTClient client = new RESTClient("http://lab-order.i-kmb.de/IKMB_order_service/api")
         def response = client.post( path: url_path,
                 accept: ContentType.JSON,
                 headers:[Authorization:  System.getenv('LIMS_TOKEN')],
