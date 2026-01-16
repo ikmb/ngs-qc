@@ -195,7 +195,7 @@ def get_lims_info(String name) {
 
 	def project_name = name.trim()
 	def url_path = "/project/info/${project_name}"
-	RESTClient client = new RESTClient("http://lab-order.i-kmb.de/IKMB_order_service/api")
+	RESTClient client = new RESTClient("http://ngslims.i-kmb.de/restapi")
 	def response = client.get( path: url_path,
 		accept: ContentType.JSON,
 		connectTimeout: 5000,
