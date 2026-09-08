@@ -220,7 +220,8 @@ def get_project_details(Integer id) {
 	def meta = [:]
 	meta["protocol"] = "Unknown"
 	def url_path = "/get_order_info/order_id/${id}"
-	RESTClient client = new RESTClient("http://lab-order.i-kmb.de/IKMB_order_service/api")
+	RESTClient client = new RESTClient("https://lab-order.i-kmb.de/IKMB_order_service/api")
+	client.httpClient.sslTrustAllCerts = true
         def response = client.post( path: url_path,
                 accept: ContentType.JSON,
                 headers:[Authorization:  System.getenv('LIMS_TOKEN')],
