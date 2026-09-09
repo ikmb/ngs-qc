@@ -4,8 +4,10 @@ LABEL authors="Marc Hoeppner" \
 
 COPY environment.yml /
 
-RUN conda env create -f /environment.yml && conda clean -ay
-ENV PATH=/opt/conda/envs/ngs-qc-1.7/bin:/opt/biobloom/bin:$PATH
+RUN conda install -n base -c conda-forge mamba && \
+    mamba env create -f /environment.yml && \
+    conda clean -ay
+ENV PATH=/opt/conda/envs/ngs-qc-1.8/bin:/opt/biobloom/bin:$PATH
 
 # Fix Debian Buster archived repositories
 RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
