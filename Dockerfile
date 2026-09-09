@@ -4,7 +4,7 @@ LABEL authors="Marc Hoeppner" \
 
 COPY environment.yml /
 
-RUN conda env create -f /environment.yml && conda clean -a
+RUN conda env create -f /environment.yml && conda clean -ay
 ENV PATH=/opt/conda/envs/ngs-qc-1.7/bin:/opt/biobloom/bin:$PATH
 
 # Fix Debian Buster archived repositories
